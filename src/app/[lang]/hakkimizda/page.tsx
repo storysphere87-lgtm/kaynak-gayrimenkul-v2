@@ -81,6 +81,7 @@ export default async function HakkimizdaPage({ params: { lang } }: { params: { l
                 : lang === 'en' 
                   ? 'We filter all legal and financial risks in the sales process and bring only verified ("Lead-Scored") buyers to the table.' 
                   : 'Satış sürecindeki hukuki ve finansal tüm riskleri filtreler, yalnızca doğrulanmış ("Lead-Scored") alıcıları masaya getiririz.'}
+            </p>
           </div>
         </div>
         {/* TEAM SECTION: AUTHENTIC AUTHORITY */}
