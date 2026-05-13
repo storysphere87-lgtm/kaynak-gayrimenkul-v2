@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 
 interface ContactFormProps {
   dict: any;
+  lang: string;
   districtName?: string;
   propertyId?: string;
   isRtl?: boolean;
 }
 
-export default function ContactForm({ dict, districtName, propertyId, isRtl }: ContactFormProps) {
+export default function ContactForm({ dict, lang, districtName, propertyId, isRtl }: ContactFormProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

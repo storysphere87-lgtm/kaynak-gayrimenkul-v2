@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 
-export default function ExitIntentPopup() {
+export default function ExitIntentPopup({ lang }: { lang: string }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [canShow, setCanShow] = useState(false);

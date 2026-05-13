@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getDistrictData, getPropertiesByDistrict, getAllDistricts } from '@/lib/api';
+import { Locale } from '@/getDictionary';
 
 interface PageParams {
   params: Promise<{

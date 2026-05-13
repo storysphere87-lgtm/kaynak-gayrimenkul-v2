@@ -67,7 +67,7 @@ export default async function IletisimPage(props: { params: Promise<{ lang: stri
 
             <div className="border-t border-white/10 pt-10">
               <h4 className="text-sm font-bold text-yellow-600 uppercase tracking-widest mb-6">{dict.contactPage.formTitle}</h4>
-              <ContactForm dict={formDict} lang={lang} />
+              <ContactForm dict={formDict} lang={lang} isRtl={isRtl} />
             </div>
           </div>
 

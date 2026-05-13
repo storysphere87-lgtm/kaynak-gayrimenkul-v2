@@ -3,7 +3,7 @@
 import React from 'react';
 import { siteConfig } from '@/config/site';
 
-export default function FloatingContact() {
+export default function FloatingContact({ lang }: { lang: string }) {
   return (
     <div className="fixed bottom-6 right-6 z-[90] flex flex-col gap-4">
       <a 

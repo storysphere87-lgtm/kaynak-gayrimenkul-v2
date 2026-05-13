@@ -54,6 +54,7 @@ export default async function RootLayout(props: {
   children: React.ReactNode;
   params: Promise<{ lang: string }>;
 }) {
+  const { children } = props;
   const { lang: langParam } = await props.params;
   const lang = langParam as Locale;
   const isRtl = lang === 'ar';
