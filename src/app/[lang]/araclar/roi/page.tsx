@@ -3,8 +3,9 @@ import { getAllDistricts } from '@/lib/api';
 import ROICalculatorClient from './ROICalculatorClient';
 import { Metadata } from 'next';
 
-export async function generateMetadata({ params }: { params: Promise<{ lang: Locale }> }): Promise<Metadata> {
-  const { lang } = await params;
+export async function generateMetadata(props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   return {
     title: `Gayrimenkul ROI Hesaplama | Kaynak Gayrimenkul`,
@@ -12,8 +13,9 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: Loc
   };
 }
 
-export default async function ROIPage({ params }: { params: Promise<{ lang: Locale }> }) {
-  const { lang } = await params;
+export default async function ROIPage(props: { params: Promise<{ lang: string }> }) {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   const districts = await getAllDistricts();
 

@@ -21,9 +21,10 @@ const dmSans = DM_Sans({
   variable: '--font-dmsans' 
 });
 
-export async function generateMetadata({ params }: { params: Promise<{ lang: Locale }> }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   // We can fetch dictionary here to set localized title/description if needed
-  const { lang } = await params;
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   
   return {
@@ -49,14 +50,12 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: Loc
   };
 }
 
-export default async function RootLayout({
-  children,
-  params
-}: {
+export default async function RootLayout(props: {
   children: React.ReactNode;
-  params: Promise<{ lang: Locale }>;
+  params: Promise<{ lang: string }>;
 }) {
-  const { lang } = await params;
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const isRtl = lang === 'ar';
   const dict = await getDictionary(lang);
   

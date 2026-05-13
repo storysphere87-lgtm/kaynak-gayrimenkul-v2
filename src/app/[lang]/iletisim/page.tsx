@@ -3,7 +3,9 @@ import { siteConfig } from '@/config/site';
 import ContactForm from '@/components/ContactForm';
 import { getDictionary, Locale } from '@/getDictionary';
 
-export async function generateMetadata({ params: { lang } }: { params: { lang: Locale } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   return {
     title: `${dict.nav.contact} | Kaynak Gayrimenkul`,
@@ -11,7 +13,9 @@ export async function generateMetadata({ params: { lang } }: { params: { lang: L
   };
 }
 
-export default async function IletisimPage({ params: { lang } }: { params: { lang: Locale } }) {
+export default async function IletisimPage(props: { params: Promise<{ lang: string }> }) {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const isRtl = lang === 'ar';
   const dict = await getDictionary(lang);
 

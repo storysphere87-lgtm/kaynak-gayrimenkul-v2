@@ -1,7 +1,9 @@
 import { Metadata } from 'next';
 import { getDictionary, Locale } from '@/getDictionary';
 
-export async function generateMetadata({ params: { lang } }: { params: { lang: Locale } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   return {
     title: 'Hakkımızda | Kaynak Gayrimenkul Ankara',
@@ -9,7 +11,9 @@ export async function generateMetadata({ params: { lang } }: { params: { lang: L
   };
 }
 
-export default async function HakkimizdaPage({ params: { lang } }: { params: { lang: Locale } }) {
+export default async function HakkimizdaPage(props: { params: Promise<{ lang: string }> }) {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   const isRtl = lang === 'ar';
 

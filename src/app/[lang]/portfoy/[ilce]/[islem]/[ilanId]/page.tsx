@@ -7,8 +7,9 @@ import Link from 'next/link';
 import Script from 'next/script';
 import { siteConfig } from '@/config/site';
 
-export async function generateMetadata({ params }: { params: Promise<{ lang: Locale, ilanId: string }> }): Promise<Metadata> {
-  const { lang, ilanId } = await params;
+export async function generateMetadata(props: { params: Promise<{ lang: string, ilanId: string }> }): Promise<Metadata> {
+  const { lang: langParam, ilanId } = await props.params;
+  const lang = langParam as Locale;
   const property = await getPropertyById(ilanId);
   const dict = await getDictionary(lang);
   
@@ -20,8 +21,9 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: Loc
   };
 }
 
-export default async function PropertyDetailPage({ params }: { params: Promise<{ lang: Locale, ilce: string, islem: string, ilanId: string }> }) {
-  const { lang, ilanId } = await params;
+export default async function PropertyDetailPage(props: { params: Promise<{ lang: string, ilce: string, islem: string, ilanId: string }> }) {
+  const { lang: langParam, ilanId } = await props.params;
+  const lang = langParam as Locale;
   const property = await getPropertyById(ilanId);
   const dict = await getDictionary(lang);
   const isRtl = lang === 'ar';

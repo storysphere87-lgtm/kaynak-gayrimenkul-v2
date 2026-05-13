@@ -6,8 +6,9 @@ import { getDistrictsWithCounts, getMarketTrends } from '@/lib/api';
 import HomeSearchBar from '@/components/home/HomeSearchBar';
 import RegionCatalogue from '@/components/home/RegionCatalogue';
 
-export default async function Home({ params }: { params: Promise<{ lang: Locale }> }) {
-  const { lang } = await params;
+export default async function Home(props: { params: Promise<{ lang: string }> }) {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   const districts = await getDistrictsWithCounts();
   const marketTrends = await getMarketTrends();

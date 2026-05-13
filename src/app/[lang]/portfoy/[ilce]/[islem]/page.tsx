@@ -5,7 +5,7 @@ import { getDistrictData, getPropertiesByDistrict, getAllDistricts } from '@/lib
 
 interface PageParams {
   params: Promise<{
-    lang: Locale;
+    lang: string;
     ilce: string;
     islem: string;
   }>;
@@ -28,7 +28,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const { lang, ilce, islem } = await params;
+  const { lang: langParam, ilce, islem } = await params;
+  const lang = langParam as Locale;
   const district = await getDistrictData(ilce);
   if (!district) return { title: 'Sayfa Bulunamadı' };
   const islemText = islem === 'satilik' ? (lang === 'tr' ? 'Satılık' : 'For Sale') : (lang === 'tr' ? 'Kiralık' : 'For Rent');
@@ -39,7 +40,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 }
 
 export default async function DistrictPage({ params }: PageParams) {
-  const { lang, ilce, islem } = await params;
+  const { lang: langParam, ilce, islem } = await params;
+  const lang = langParam as Locale;
   const district = await getDistrictData(ilce);
   if (!district) notFound();
   const properties = await getPropertiesByDistrict(district.id, islem);
