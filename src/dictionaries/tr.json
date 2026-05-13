@@ -1,0 +1,150 @@
+{
+  "home": {
+    "title": "Ankara’nın Lüks Konut ve Yatırım Merkezi.",
+    "badge": "Ankara Gayrimenkul Otoritesi",
+    "search": {
+      "region": "Bölge Seçiniz",
+      "type": "İşlem Tipi",
+      "sale": "Satılık",
+      "rent": "Kiralık",
+      "button": "İlanları Gör"
+    },
+    "catalog": {
+      "title": "Bölgelere Göre Katalog.",
+      "viewAll": "Tüm İlanlar",
+      "activePortfolio": "Aktif Portföy",
+      "viewListings": "İlanları İncele"
+    },
+    "sell": {
+      "title": "Mülkünüzü satmayı mı düşünüyorsunuz?",
+      "description": "Piyasanın gerçek verileriyle, mülkünüzün gerçek değerini otonom sistemimizle sadece 1 dakikada öğrenin.",
+      "button": "Ücretsiz Değerleme Başlat"
+    }
+  },
+  "nav": {
+    "portfolio": "Portföy",
+    "sell": "Evimi Satmak İstiyorum",
+    "contact": "İletişim",
+    "advisors": "Danışmanlar",
+    "language": "TR"
+  },
+  "footer": {
+    "about": "Ankara'nın yerel uzmanlığı ile gayrimenkul yatırımlarınıza değer katıyoruz. Güven, şeffaflık ve sonuç odaklı hizmet.",
+    "quickMenu": "Hızlı Menü",
+    "allListings": "Tüm İlanlar",
+    "appraisal": "Ekspertiz Hizmeti",
+    "roi": "ROI Hesaplama",
+    "whoWeAre": "Biz Kimiz?",
+    "contact": "İletişim",
+    "rights": "Tüm hakları saklıdır.",
+    "privacy": "KVKK",
+    "cookies": "Çerez Politikası"
+  },
+  "portfoy": {
+    "badge": "Seçkin Portföy",
+    "title": "Ankara'nın En İyi <br /><span class=\"text-yellow-500 italic\">Fırsatları.</span>",
+    "description": "Haftalık olarak güncellenen, pazar analizi yapılmış en avantajlı gayrimenkuller.",
+    "allRegions": "Tüm Bölgeler",
+    "allTypes": "Tüm Tipler",
+    "sale": "Satılık",
+    "rent": "Kiralık",
+    "notFound": "Seçtiğiniz kriterlere uygun ilan bulunamadı.",
+    "clearFilters": "Filtreleri Temizle"
+  },
+  "sellerFunnel": {
+    "step1": {
+      "title": "Mülkünüzün tipi nedir?",
+      "subtitle": "Anında piyasa analizi için seçim yaparak başlayın.",
+      "types": ["Daire", "Villa", "Arsa", "Ticari"]
+    },
+    "step2": {
+      "back": "Geri",
+      "title": "Konum ve Büyüklük Girin",
+      "district": "İlçe",
+      "select": "Seçiniz...",
+      "sqm": "Brüt m²",
+      "sqmPlaceholder": "Örn: 150",
+      "valuationTitle": "Tahmini Piyasa Değeri",
+      "submit": "Kesin Raporu Al"
+    },
+    "step3": {
+      "title": "Son Bir Adım",
+      "subtitle": "Uzmanlarımızın sizinle iletişime geçmesi için bilgilerinizi doğrulayın.",
+      "name": "Ad Soyad",
+      "phone": "Telefon Numarası",
+      "loading": "Hesaplanıyor...",
+      "submit": "Değerleme Raporunu Tamamla"
+    },
+    "step4": {
+      "title": "Talebiniz Alındı!",
+      "description": "Mülkünüz için hazırladığımız kapsamlı piyasa analizi raporu tamamlanmak üzere. Gayrimenkul danışmanlarımız 24 saat içinde sizi arayacak.",
+      "home": "Ana Sayfaya Dön"
+    }
+  },
+  "aboutPage": {
+    "badge": "Ankara’nın Yerel Gücü",
+    "title": "Uzmanlık, Veri ve <br /><span class=\"italic text-yellow-500\">Sarsılmaz Güven.</span>",
+    "description": "Kaynak Gayrimenkul, Ankara piyasasının saha tecrübesini modern veri analitiği ile birleştirerek süreci stratejiye dönüştürür.",
+    "stats": {
+      "rating": "Google Puanı",
+      "transactions": "Başarılı İşlem",
+      "process": "Şeffaf Süreç"
+    },
+    "teamTitle": "Otoritenin <span class=\"text-yellow-500\">Yüzleri.</span>",
+    "team": [
+      {
+        "name": "Cafer Peksoy",
+        "role": "Kurucu Broker",
+        "quote": "\"10 yılı aşkın deneyimle Ankara piyasasının nabzını tutuyor, karmaşık krizleri yönetiyorum.\""
+      },
+      {
+        "name": "Refia Nur Peksoy",
+        "role": "Broker",
+        "quote": "\"Lüks konut değerleme alanında, müşterilerime en karlı yatırım kapılarını aralıyorum.\""
+      }
+    ],
+    "ctaTitle": "Mülkünüzün gerçek değerini <br /><span class=\"text-yellow-500 italic text-white\">öğrenmeye hazır mısınız?</span>",
+    "ctaButton": "Ücretsiz Değerleme Al"
+  },
+  "contactPage": {
+    "badge": "Bize Ulaşın",
+    "title": "Sizi Dinlemeye <br /><span class=\"text-yellow-500 italic\">Hazırız.</span>",
+    "description": "Her türlü gayrimenkul sorunuz veya talebiniz için bizimle iletişime geçebilirsiniz. Uzman ekibimiz size en kısa sürede dönüş yapacaktır.",
+    "addressLabel": "Adres",
+    "phoneLabel": "Telefon",
+    "emailLabel": "E-posta",
+    "formTitle": "Mesaj Gönderin",
+    "formSuccess": "Mesajınız Alındı",
+    "formSuccessSub": "Müşteri temsilcimiz size en kısa sürede dönüş yapacaktır.",
+    "newMsg": "Yeni Mesaj Gönder",
+    "name": "Adınız Soyadınız",
+    "namePlaceholder": "Ad Soyad",
+    "phone": "Telefon",
+    "email": "E-posta",
+    "emailPlaceholder": "ornek@mail.com",
+    "message": "Mesajınız",
+    "messagePlaceholder": "Size nasıl yardımcı olabiliriz?",
+    "sending": "Gönderiliyor...",
+    "submit": "Talebi Gönder"
+  },
+  "propertyDetail": {
+    "notFound": "İlan Bulunamadı",
+    "backToPortfolio": "PORTFÖYÜNE DÖN",
+    "onSale": "Satışta",
+    "sold": "Satıldı",
+    "price": "Fiyat",
+    "rooms": "Oda Sayısı",
+    "sqm": "Brüt Alan",
+    "type": "İşlem Tipi",
+    "descTitle": "İlan Açıklaması",
+    "desc1": "bölgesindeki bu eşsiz portföy, lüksü ve konforu bir araya getiriyor. Geniş yaşam alanları, birinci sınıf malzeme kalitesi ve modern mimarisiyle yatırım değeri yüksek bir fırsat.",
+    "desc2": "Kaynak Gayrimenkul güvencesiyle sunulan bu mülkü yerinde görmek ve detaylı bilgi almak için bizimle iletişime geçin.",
+    "ctaTitle": "Bu Portföyle İlgileniyorum",
+    "ctaSubtitle": "Uzman danışmanımız sizinle en kısa sürede iletişime geçecektir.",
+    "name": "Adınız Soyadınız",
+    "phone": "Telefon Numaranız",
+    "message": "Mesajınız...",
+    "submit": "Talebi Gönder",
+    "orCall": "Veya Bizi Arayın"
+  }
+}

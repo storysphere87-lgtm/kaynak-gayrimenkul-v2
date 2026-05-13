@@ -1,0 +1,150 @@
+{
+  "home": {
+    "title": "Ankara's Luxury Real Estate & Investment Hub.",
+    "badge": "Ankara Real Estate Authority",
+    "search": {
+      "region": "Select Region",
+      "type": "Transaction Type",
+      "sale": "For Sale",
+      "rent": "For Rent",
+      "button": "View Listings"
+    },
+    "catalog": {
+      "title": "Catalog by Regions.",
+      "viewAll": "All Listings",
+      "activePortfolio": "Active Portfolio",
+      "viewListings": "View Listings"
+    },
+    "sell": {
+      "title": "Thinking of selling your property?",
+      "description": "Discover the true value of your property with real market data using our autonomous system in just 1 minute.",
+      "button": "Start Free Valuation"
+    }
+  },
+  "nav": {
+    "portfolio": "Portfolio",
+    "sell": "I Want to Sell",
+    "contact": "Contact",
+    "advisors": "Advisors",
+    "language": "EN"
+  },
+  "footer": {
+    "about": "Adding value to your real estate investments with local expertise in Ankara. Trust, transparency, and results-oriented service.",
+    "quickMenu": "Quick Menu",
+    "allListings": "All Listings",
+    "appraisal": "Appraisal Service",
+    "roi": "ROI Calculator",
+    "whoWeAre": "Who We Are?",
+    "contact": "Contact",
+    "rights": "All rights reserved.",
+    "privacy": "Privacy Policy",
+    "cookies": "Cookie Policy"
+  },
+  "portfoy": {
+    "badge": "Exclusive Portfolio",
+    "title": "Ankara's Best <br /><span class=\"text-yellow-500 italic\">Opportunities.</span>",
+    "description": "Weekly updated, market-analyzed most advantageous real estate properties.",
+    "allRegions": "All Regions",
+    "allTypes": "All Types",
+    "sale": "For Sale",
+    "rent": "For Rent",
+    "notFound": "No listings found matching your criteria.",
+    "clearFilters": "Clear Filters"
+  },
+  "sellerFunnel": {
+    "step1": {
+      "title": "What is your property type?",
+      "subtitle": "Start by selecting for an instant market analysis.",
+      "types": ["Apartment", "Villa", "Land", "Commercial"]
+    },
+    "step2": {
+      "back": "Back",
+      "title": "Enter Location and Size",
+      "district": "District",
+      "select": "Select...",
+      "sqm": "Gross sqm",
+      "sqmPlaceholder": "Ex: 150",
+      "valuationTitle": "Estimated Market Value",
+      "submit": "Get Final Report"
+    },
+    "step3": {
+      "title": "One Last Step",
+      "subtitle": "Verify your information so our experts can contact you.",
+      "name": "Full Name",
+      "phone": "Phone Number",
+      "loading": "Calculating...",
+      "submit": "Complete Valuation Report"
+    },
+    "step4": {
+      "title": "Request Received!",
+      "description": "The comprehensive market analysis report we prepared for your property is almost complete. Our real estate consultants will call you within 24 hours.",
+      "home": "Return to Homepage"
+    }
+  },
+  "aboutPage": {
+    "badge": "Ankara's Local Power",
+    "title": "Expertise, Data and <br /><span class=\"italic text-yellow-500\">Unwavering Trust.</span>",
+    "description": "Kaynak Real Estate combines field experience in the Ankara market with modern data analytics to turn the process into strategy.",
+    "stats": {
+      "rating": "Google Rating",
+      "transactions": "Successful Deals",
+      "process": "Transparent Process"
+    },
+    "teamTitle": "Faces of <span class=\"text-yellow-500\">Authority.</span>",
+    "team": [
+      {
+        "name": "Cafer Peksoy",
+        "role": "Founder Broker",
+        "quote": "\"With over 10 years of experience, I keep the pulse of the Ankara market and manage complex crises.\""
+      },
+      {
+        "name": "Refia Nur Peksoy",
+        "role": "Broker",
+        "quote": "\"In the field of luxury housing valuation, I open the most profitable investment doors for my clients.\""
+      }
+    ],
+    "ctaTitle": "Are you ready to find out the true value of <br /><span class=\"text-yellow-500 italic text-white\">your property?</span>",
+    "ctaButton": "Get a Free Valuation"
+  },
+  "contactPage": {
+    "badge": "Contact Us",
+    "title": "We Are Ready <br /><span class=\"text-yellow-500 italic\">To Listen.</span>",
+    "description": "You can contact us for any real estate questions or requests. Our expert team will get back to you as soon as possible.",
+    "addressLabel": "Address",
+    "phoneLabel": "Phone",
+    "emailLabel": "Email",
+    "formTitle": "Send a Message",
+    "formSuccess": "Message Received",
+    "formSuccessSub": "Our customer representative will get back to you as soon as possible.",
+    "newMsg": "Send New Message",
+    "name": "Full Name",
+    "namePlaceholder": "Full Name",
+    "phone": "Phone",
+    "email": "Email",
+    "emailPlaceholder": "example@mail.com",
+    "message": "Your Message",
+    "messagePlaceholder": "How can we help you?",
+    "sending": "Sending...",
+    "submit": "Submit Request"
+  },
+  "propertyDetail": {
+    "notFound": "Listing Not Found",
+    "backToPortfolio": "BACK TO PORTFOLIO",
+    "onSale": "For Sale",
+    "sold": "Sold",
+    "price": "Price",
+    "rooms": "Rooms",
+    "sqm": "Gross Area",
+    "type": "Transaction Type",
+    "descTitle": "Listing Description",
+    "desc1": "area combines luxury and comfort. With large living spaces, premium material quality, and modern architecture, it is a high-value investment opportunity.",
+    "desc2": "Contact us to see this property offered with Kaynak Real Estate assurance on-site and get detailed information.",
+    "ctaTitle": "I'm Interested in This Property",
+    "ctaSubtitle": "Our expert consultant will contact you as soon as possible.",
+    "name": "Full Name",
+    "phone": "Phone Number",
+    "message": "Your Message...",
+    "submit": "Submit Request",
+    "orCall": "Or Call Us"
+  }
+}
