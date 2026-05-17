@@ -30,8 +30,41 @@ export default function ExitIntentPopup({ lang }: { lang: string }) {
           <div>
             <h2 className="text-3xl font-serif mb-4 leading-tight text-white">Gidiyor musunuz?</h2>
             <p className="text-gray-400 mb-8 leading-relaxed">Aradığınızı henüz bulamadıysanız kriterlerinizi bırakın, piyasaya düşmeden size haber verelim.</p>
-            <form onSubmit={(e) => { e.preventDefault(); setIsSubmitted(true); setTimeout(() => setIsVisible(false), 3000); }} className="space-y-4">
-              <input required type="tel" placeholder="Telefon Numaranız" className="w-full p-4 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-600 outline-none transition-colors text-center text-lg text-white" />
+            <form 
+              onSubmit={async (e) => { 
+                e.preventDefault(); 
+                const formData = new FormData(e.currentTarget);
+                const phone = formData.get('phone');
+                
+                try {
+                  await fetch('/api/lead', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name: 'Ziyaretçi (Exit Intent)',
+                      phone: phone,
+                      message: 'Siteden ayrılırken telefon numarasını bıraktı. Lütfen iletişime geçin.',
+                      source: 'Exit Intent'
+                    })
+                  });
+
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'generate_lead', {
+                      lead_source: 'Exit Intent',
+                      value: 50,
+                      currency: 'TRY'
+                    });
+                  }
+                } catch (error) {
+                  console.error('Lead capture error', error);
+                }
+                
+                setIsSubmitted(true); 
+                setTimeout(() => setIsVisible(false), 3000); 
+              }} 
+              className="space-y-4"
+            >
+              <input required name="phone" type="tel" placeholder="Telefon Numaranız" className="w-full p-4 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-600 outline-none transition-colors text-center text-lg text-white" />
               <button type="submit" className="w-full p-4 rounded-xl bg-yellow-600 hover:bg-yellow-500 text-gray-950 font-bold text-lg transition-all">Beni Arayın</button>
             </form>
           </div>

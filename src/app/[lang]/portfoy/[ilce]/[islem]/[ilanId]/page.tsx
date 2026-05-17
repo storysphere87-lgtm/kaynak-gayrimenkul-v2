@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { getPropertyById, getDistrictData } from '@/lib/api';
 import { getDictionary, Locale } from '@/getDictionary';
 import ContactForm from '@/components/ContactForm';
+import PropertyGallery from '@/components/PropertyGallery';
+import OfferBot from '@/components/OfferBot';
 import Link from 'next/link';
 import Script from 'next/script';
 import { siteConfig } from '@/config/site';
@@ -15,9 +17,12 @@ export async function generateMetadata(props: { params: Promise<{ lang: string, 
   
   if (!property) return { title: 'İlan Bulunamadı' };
 
+  const propertyTitle = lang === 'en' ? (property.title_en || property.title) : lang === 'ar' ? (property.title_ar || property.title) : property.title;
+  const propertyDescription = lang === 'en' ? (property.description_en || property.description) : lang === 'ar' ? (property.description_ar || property.description) : property.description;
+
   return {
-    title: `${property.title} | Kaynak Gayrimenkul`,
-    description: property.description_en || property.description, // AI-ready description
+    title: `${propertyTitle} | Kaynak Gayrimenkul`,
+    description: propertyDescription,
   };
 }
 
@@ -38,19 +43,20 @@ export default async function PropertyDetailPage(props: { params: Promise<{ lang
     }).format(price);
   };
 
-  const propertyDescription = lang === 'en' ? property.description_en : lang === 'ar' ? property.description_ar : property.description;
+  const propertyTitle = lang === 'en' ? (property.title_en || property.title) : lang === 'ar' ? (property.title_ar || property.title) : property.title;
+  const propertyDescription = lang === 'en' ? (property.description_en || property.description) : lang === 'ar' ? (property.description_ar || property.description) : property.description;
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "RealEstateListing",
-    "name": property.title,
-    "description": property.description,
+    "name": propertyTitle,
+    "description": propertyDescription,
     "url": `${siteConfig.url}/${lang}/portfoy/${property.district_id}/${property.type === 'Satılık' ? 'satilik' : 'kiralik'}/${property.id}`,
     "datePosted": property.created_at,
     "image": property.images?.[0] || `${siteConfig.url}/hero-bg.png`,
     "mainEntity": {
       "@type": "SingleFamilyResidence",
-      "name": property.title,
+      "name": propertyTitle,
       "numberOfRooms": property.rooms,
       "floorSize": {
         "@type": "QuantitativeValue",
@@ -95,17 +101,15 @@ export default async function PropertyDetailPage(props: { params: Promise<{ lang
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
           {/* LEFT: VISUALS & SPECS (8 COLS) */}
           <div className="lg:col-span-8 space-y-12">
-            {/* MAIN IMAGE GALLERY: OPAL GLASS BORDER */}
-            <div className="relative aspect-[16/9] rounded-[4rem] overflow-hidden border border-white/5 bg-white/[0.02] shadow-2xl group">
-              <img 
-                src={property.images?.[0] || "/hero-bg.png"} 
-                alt={property.title} 
-                className="w-full h-full object-cover transition-transform duration-[5000ms] group-hover:scale-110" 
-              />
-              <div className="absolute top-10 left-10 bg-black/80 backdrop-blur-xl border border-white/10 px-6 py-2 rounded-full text-[10px] font-bold tracking-widest text-yellow-600 uppercase">
-                {property.type}
-              </div>
-            </div>
+            {/* MAIN IMAGE GALLERY WITH 3D VR TABS */}
+            <PropertyGallery 
+              images={property.images || []} 
+              externalUrl={property.external_url} 
+              propertyTitle={propertyTitle} 
+              propertyId={property.id}
+              price={Number(property.price || 0)}
+              district={property.district_id || 'Merkez'}
+            />
 
             {/* TECHNICAL SPECS: BRUSHED GOLD GRID */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -126,10 +130,14 @@ export default async function PropertyDetailPage(props: { params: Promise<{ lang
             {/* DESCRIPTION: TYPOGRAPHIC AUTHORITY */}
             <div className="space-y-8 max-w-4xl">
               <div className="flex items-center gap-4">
-                <h2 className="text-3xl font-serif italic text-white">Mülk Detayları</h2>
+                <h2 className="text-3xl font-serif italic text-white">
+                  {lang === 'tr' ? 'Mülk Detayları' : lang === 'en' ? 'Property Details' : 'تفاصيل العقار'}
+                </h2>
                 <div className="h-[1px] flex-1 bg-white/5" />
-                {property.description_en && (
-                  <span className="text-[8px] border border-yellow-600/30 text-yellow-600 px-2 py-1 rounded uppercase tracking-tighter">AI Translated</span>
+                {((lang === 'en' && property.description_en) || (lang === 'ar' && property.description_ar)) && (
+                  <span className="text-[8px] border border-yellow-600/30 text-yellow-600 px-2 py-1 rounded uppercase tracking-tighter">
+                    {lang === 'en' ? 'Translated' : 'مترجم'}
+                  </span>
                 )}
               </div>
               <div className="text-gray-400 text-lg leading-relaxed font-light tracking-wide whitespace-pre-wrap">
@@ -177,6 +185,9 @@ export default async function PropertyDetailPage(props: { params: Promise<{ lang
           </div>
         </div>
       </div>
+      
+      {/* Quantum AI Floating Offer & Negotiator OS */}
+      <OfferBot propertyId={property.id} listPrice={Number(property.price || 0)} />
     </main>
   );
 }

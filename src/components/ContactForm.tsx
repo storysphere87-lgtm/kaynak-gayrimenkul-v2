@@ -23,7 +23,8 @@ export default function ContactForm({ dict, lang, districtName, propertyId, isRt
       phone: formData.get('phone'),
       message: formData.get('message'),
       district: districtName,
-      property_id: propertyId
+      property_id: propertyId,
+      source: 'Contact Form'
     };
 
     try {
@@ -35,6 +36,13 @@ export default function ContactForm({ dict, lang, districtName, propertyId, isRt
 
       if (res.ok) {
         setStatus('success');
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'generate_lead', {
+            lead_source: 'Contact Form',
+            value: 100,
+            currency: 'TRY'
+          });
+        }
       } else {
         setStatus('error');
       }

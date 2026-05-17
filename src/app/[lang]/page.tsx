@@ -5,6 +5,7 @@ import { getDistrictsWithCounts, getMarketTrends } from '@/lib/api';
 
 import HomeSearchBar from '@/components/home/HomeSearchBar';
 import RegionCatalogue from '@/components/home/RegionCatalogue';
+import MarketTrends from '@/components/home/MarketTrends';
 
 export default async function Home(props: { params: Promise<{ lang: string }> }) {
   const { lang: langParam } = await props.params;
@@ -14,8 +15,43 @@ export default async function Home(props: { params: Promise<{ lang: string }> })
   const marketTrends = await getMarketTrends();
   const isRtl = lang === 'ar';
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Kaynak Gayrimenkul'ün portföyü hangi bölgeleri kapsıyor?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Ankara'nın prestijli bölgeleri olan Çankaya, Etimesgut, Yenimahalle, Gölbaşı gibi ilçelerde geniş ve nitelikli portföyümüz bulunmaktadır."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Gayrimenkul değerlendirme işlemlerini nasıl yapıyorsunuz?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sektörel tecrübemiz ve yapay zeka destekli veri analiz sistemlerimiz (Quantum OS) ile gerçek pazar değerini tespit ediyoruz."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "İlanlarım ulusal emlak portallarında yayınlanıyor mu?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Evet, sistemimize eklenen gayrimenkuller otonom mimarimiz sayesinde EmlakJet, Zingat ve diğer anlaşmalı kurumsal ağlarda otomatik olarak yayına alınır."
+        }
+      }
+    ]
+  };
+
   return (
     <main className={`min-h-screen bg-gray-950 text-gray-100 selection:bg-yellow-600/30 font-sans ${isRtl ? 'rtl' : 'ltr'}`}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
       {/* NOISE OVERLAY: Hafifletildi */}
       <div className="fixed inset-0 z-[100] pointer-events-none opacity-[0.02] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
@@ -102,6 +138,9 @@ export default async function Home(props: { params: Promise<{ lang: string }> })
           </div>
         </div>
       </section>
+
+      {/* MARKET TRENDS: QUANTUM OS DATA */}
+      <MarketTrends trends={marketTrends || []} dict={dict} lang={lang} isRtl={isRtl} />
 
       {/* SERVICES SECTION: LUXURY CONSULTANCY */}
       <section className="py-32 container mx-auto px-6">

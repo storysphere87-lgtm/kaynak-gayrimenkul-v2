@@ -28,13 +28,29 @@ export async function generateMetadata(props: { params: Promise<{ lang: string }
   const dict = await getDictionary(lang);
   
   return {
+    metadataBase: new URL('https://kaynakgayrimenkul.com'),
     title: {
       default: `${dict.home.badge} | Kaynak Gayrimenkul`,
       template: '%s | Kaynak Gayrimenkul'
     },
     description: dict.home.title,
+    openGraph: {
+      title: `${dict.home.badge} | Kaynak Gayrimenkul`,
+      description: dict.home.title,
+      url: 'https://kaynakgayrimenkul.com',
+      siteName: 'Kaynak Gayrimenkul',
+      images: [
+        {
+          url: '/logo.png',
+          width: 1200,
+          height: 630,
+        }
+      ],
+      locale: lang === 'tr' ? 'tr_TR' : lang === 'en' ? 'en_US' : 'ar_SA',
+      type: 'website',
+    },
     alternates: {
-      canonical: 'https://kaynakgayrimenkul.com',
+      canonical: `/${lang}`,
       languages: {
         'tr-TR': 'https://kaynakgayrimenkul.com/tr',
         'en-US': 'https://kaynakgayrimenkul.com/en',
@@ -118,13 +134,13 @@ export default async function RootLayout(props: {
       </head>
       <body className={`${cormorant.variable} ${dmSans.variable} font-sans bg-gray-950 text-gray-100 antialiased ${isRtl ? 'rtl' : ''}`}>
         {/* Google Analytics 4 */}
-        <Script src={`https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX`} strategy="afterInteractive" />
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID || 'G-XXXXXXXXXX'}`} strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-XXXXXXXXXX');
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID || 'G-XXXXXXXXXX'}');
           `}
         </Script>
 

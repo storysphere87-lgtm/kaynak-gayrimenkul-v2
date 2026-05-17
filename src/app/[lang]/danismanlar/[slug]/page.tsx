@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getDictionary, Locale } from '@/getDictionary';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { generateVCard } from '@/lib/vcard';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: Locale, slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -31,20 +32,55 @@ export default async function AdvisorDetailPage({ params }: { params: Promise<{ 
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-          {/* Sol: Fotoğraf */}
-          <div className="lg:col-span-4">
-            <div className="aspect-[3/4] rounded-[3rem] overflow-hidden border border-white/10 relative">
+          {/* Sol: Fotoğraf & Kartvizit */}
+          <div className="lg:col-span-4 flex flex-col gap-8">
+            <div className="aspect-[3/4] rounded-[3rem] overflow-hidden border border-white/10 relative shadow-2xl">
               <img src={advisor.image_url} alt={advisor.name} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-gray-950/60 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-gray-950/20 to-transparent"></div>
+              
+              {/* vCard Hızlı Butonlar */}
+              <div className="absolute bottom-6 left-6 right-6 flex flex-col gap-3">
+                <a href={`tel:${advisor.phone}`} className="w-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-white transition-all shadow-xl">
+                  <span>📞</span> Hemen Ara
+                </a>
+                <a href={`https://wa.me/${advisor.whatsapp}`} target="_blank" className="w-full bg-green-600/30 backdrop-blur-md border border-green-600/50 hover:bg-green-600/40 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-green-400 transition-all shadow-xl">
+                  <span>💬</span> WhatsApp
+                </a>
+              </div>
             </div>
             
-            <div className="mt-8 space-y-4">
-              <a href={`tel:${advisor.phone}`} className="w-full bg-white/5 border border-white/10 hover:border-yellow-600/50 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold transition-all">
-                <span>📞</span> Hemen Ara
+            {/* Quantum QR & NFC Vizyonu */}
+            <div className="bg-gray-900 border border-white/10 p-8 rounded-[3rem] flex flex-col items-center text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-600/10 blur-[50px] rounded-full"></div>
+              <h3 className="text-xl font-serif text-white mb-2">Dijital Kartvizit</h3>
+              <p className="text-sm text-gray-500 mb-6">Kameraya okutarak veya butona basarak rehbere ekleyin.</p>
+              
+              <div className="bg-white p-2 rounded-2xl mb-6">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://kaynakgayrimenkul.com/${lang}/danismanlar/${slug}`} 
+                  alt="QR Kimlik" 
+                  className="w-32 h-32 rounded-xl"
+                />
+              </div>
+
+              <a 
+                href={`data:text/vcard;charset=utf-8,${encodeURIComponent(generateVCard({
+                  name: advisor.name,
+                  phone: advisor.phone,
+                  email: advisor.email,
+                  title: advisor.title,
+                  url: `https://kaynakgayrimenkul.com/${lang}/danismanlar/${slug}`
+                }))}`} 
+                download={`${slug}.vcf`}
+                className="w-full bg-yellow-600 hover:bg-yellow-500 text-gray-950 font-bold py-4 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2"
+              >
+                📥 Rehbere Ekle
               </a>
-              <a href={`https://wa.me/${advisor.whatsapp}`} target="_blank" className="w-full bg-green-600/20 border border-green-600/30 hover:bg-green-600/30 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-green-500 transition-all">
-                <span>💬</span> WhatsApp'tan Yaz
-              </a>
+              
+              {/* NFC Placeholder Info */}
+              <div className="mt-6 flex items-center gap-2 text-xs text-gray-600 font-bold uppercase tracking-widest">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> NFC Uyumlu
+              </div>
             </div>
           </div>
 
@@ -68,8 +104,8 @@ export default async function AdvisorDetailPage({ params }: { params: Promise<{ 
             {/* İletişim Formu Card */}
             <div className="bg-gray-900 border border-yellow-600/20 p-10 md:p-16 rounded-[4rem] relative overflow-hidden">
                <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-600/5 blur-[100px] rounded-full"></div>
-               <h3 className="text-3xl font-serif mb-2 text-white">{advisor.name} ile İletişime Geçin</h3>
-               <p className="text-gray-500 mb-10">Mülkünüzün gerçek değerini öğrenmek veya yatırım danışmanlığı almak için formu doldurun.</p>
+               <h3 className="text-3xl font-serif mb-2 text-white">Bana Ev Bul (AI Destekli)</h3>
+               <p className="text-gray-500 mb-10">Mülkünüzün gerçek değerini öğrenmek veya size en uygun portföyü Quantum AI ile eşleştirmek için talebinizi bırakın.</p>
                
                <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <input type="text" placeholder="Adınız Soyadınız" className="bg-gray-950 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-yellow-600 transition-all" />

@@ -9,6 +9,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, phone, email, district, propertyType, budget, message } = body;
 
+    // Quantum OS AI Lead Skorlaması
+    const { evaluateLead } = await import('@/lib/ai');
+    const { score, intent_level } = await evaluateLead({
+      name, district, propertyType, budget, message
+    });
+
     // 1. Supabase'e Kayıt (CRM)
     const { error: dbError } = await supabase
       .from('leads')
@@ -20,6 +26,9 @@ export async function POST(request: Request) {
         property_type: propertyType, 
         budget, 
         message,
+        source: body.source || 'Direct',
+        score: score,
+        intent_level: intent_level,
         created_at: new Date().toISOString()
       }]);
 
@@ -29,7 +38,7 @@ export async function POST(request: Request) {
     try {
       await resend.emails.send({
         from: 'Kaynak Gayrimenkul <onboarding@resend.dev>',
-        to: 'fixankara1@gmail.com',
+        to: 'kaynakgayrimenkul06@gmail.com',
         subject: `📢 YENİ MÜŞTERİ TALEBİ: ${name}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; border: 1px solid #c8a96e; border-radius: 10px;">

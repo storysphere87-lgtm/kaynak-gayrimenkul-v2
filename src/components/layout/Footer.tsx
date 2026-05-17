@@ -59,25 +59,31 @@ const Footer = ({ lang, dict }: { lang: string, dict: any }) => {
                     </div>
                 </div>
 
-                <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                        <p className="text-white/20 text-[10px] font-medium tracking-widest uppercase">
+                <div className="pt-12 border-t border-white/5 flex flex-col lg:flex-row justify-between items-center gap-8 w-full">
+                    {/* Copyright Section */}
+                    <div className="text-center lg:text-left">
+                        <p className="text-white/25 text-[10px] font-medium tracking-widest uppercase">
                             &copy; {new Date().getFullYear()} {siteConfig.name}. {dict.rights}
                         </p>
-                        <span className="hidden md:block w-4 h-[1px] bg-white/5" />
+                    </div>
+
+                    {/* Nextoria Shimmer Signature with isolated block wrapper */}
+                    <div className="my-4 lg:my-0">
                         <a 
-                            href="https://www.nextoriadigital.com" 
+                            href="https://nextoriadigital.com" 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="group flex items-center gap-3 hover:scale-105 transition-transform duration-500"
+                            className="group flex items-center justify-center gap-3 px-6 py-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-yellow-600/20 hover:bg-white/[0.04] transition-all duration-500 shadow-xl"
                         >
-                            <span className="text-white/20 text-[9px] font-bold uppercase tracking-[0.4em]">Designed by</span>
-                            <span className="animate-nextoria-text text-[14px] font-black tracking-[0.6em] uppercase">Nextoria</span>
+                            <span className="text-white/30 text-[8px] font-bold uppercase tracking-[0.4em] transition-colors group-hover:text-white/60">Designed by</span>
+                            <span className="animate-nextoria-text text-[13px] font-black tracking-[0.5em] uppercase drop-shadow-[0_0_12px_rgba(251,191,36,0.4)]">Nextoria</span>
                         </a>
                     </div>
-                    <div className="flex gap-12">
-                        <Link href={`/${lang}/kvkk`} className="text-white/20 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest">{dict.privacy}</Link>
-                        <Link href={`/${lang}/cerez-politikasi`} className="text-white/20 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest">{dict.cookies}</Link>
+
+                    {/* Footer Legal Links */}
+                    <div className="flex gap-8">
+                        <Link href={`/${lang}/kvkk`} className="text-white/25 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest">{dict.privacy}</Link>
+                        <Link href={`/${lang}/cerez-politikasi`} className="text-white/25 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest">{dict.cookies}</Link>
                     </div>
                 </div>
             </div>

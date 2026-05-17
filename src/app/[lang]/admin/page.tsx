@@ -26,13 +26,17 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
   // Form State
   const [formData, setFormData] = useState({
     title: '',
+    title_en: '',
+    title_ar: '',
     price: '',
     district_id: '',
     type: 'Satılık',
     rooms: '3+1',
     sqm: '',
     category: 'Daire',
-    description: ''
+    description: '',
+    description_en: '',
+    description_ar: ''
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -124,6 +128,29 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
     else setNotification({ message: 'Hata: ' + result.error, type: 'error' });
   };
 
+  const handleAIAnalysis = async (id: string) => {
+    setNotification({ message: 'AI Analizi yapılıyor, lütfen bekleyin...', type: 'success' });
+    const { analyzePropertyPriceAction } = await import('./actions');
+    const result = await analyzePropertyPriceAction(id);
+    if (result.success && result.result) {
+      alert(`AI DEĞERLENDİRMESİ:\n\nDeğerleme: ${result.result.evaluation}\nTahmini Fiyat: ${result.result.estimated_value}\nÖneri: ${result.result.suggestion}`);
+    } else {
+      setNotification({ message: 'Hata: ' + result.error, type: 'error' });
+    }
+  };
+
+  const handleDownloadStory = (property: any) => {
+    const url = new URL(window.location.origin + '/api/social-story');
+    url.searchParams.set('title', property.title);
+    url.searchParams.set('price', property.price.toLocaleString('tr-TR'));
+    url.searchParams.set('district', property.district_id);
+    url.searchParams.set('specs', `${property.rooms} | ${property.sqm} m² | ${property.type}`);
+    if (property.images && property.images.length > 0) {
+      url.searchParams.set('image', property.images[0]);
+    }
+    window.open(url.toString(), '_blank');
+  };
+
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
@@ -134,6 +161,8 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
       
       // Form verilerini doldur
       formDataToSend.append('title', formData.title);
+      formDataToSend.append('title_en', formData.title_en);
+      formDataToSend.append('title_ar', formData.title_ar);
       formDataToSend.append('price', formData.price);
       formDataToSend.append('district_id', formData.district_id);
       formDataToSend.append('type', formData.type);
@@ -141,6 +170,8 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
       formDataToSend.append('sqm', formData.sqm);
       formDataToSend.append('category', formData.category);
       formDataToSend.append('description', formData.description);
+      formDataToSend.append('description_en', formData.description_en);
+      formDataToSend.append('description_ar', formData.description_ar);
       
       // Resimleri ekle
       selectedFiles.forEach(file => {
@@ -179,7 +210,7 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
       )}
 
       <div className="container mx-auto px-6">
-        <div className="flex justify-between items-center mb-12">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-4xl font-bold">Yönetim Paneli</h1>
           <button 
             onClick={handleLogout}
@@ -189,15 +220,93 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
           </button>
         </div>
 
+        {/* QUICK NAVIGATION */}
+        <div className="flex gap-4 mb-12">
+          <button 
+            onClick={() => router.push(`/${params.lang}/admin`)}
+            className="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold shadow-md"
+          >
+            İlanlar & Talepler
+          </button>
+          <button 
+            onClick={() => router.push(`/${params.lang}/admin/egitim`)}
+            className="bg-white text-gray-700 px-6 py-3 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all"
+          >
+            🎓 Eğitimleri Yönet
+          </button>
+          <button 
+            onClick={() => router.push(`/${params.lang}/admin/belgeler`)}
+            className="bg-white text-gray-700 px-6 py-3 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all"
+          >
+            📄 Belgeleri Yönet
+          </button>
+          <button 
+            onClick={() => router.push(`/${params.lang}/admin/pipeline`)}
+            className="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold border border-blue-200 hover:bg-blue-50 transition-all shadow-sm"
+          >
+            💼 İşlem Takibi (Kanban)
+          </button>
+          <button 
+            onClick={() => router.push(`/${params.lang}/admin/kpi`)}
+            className="bg-white text-purple-600 px-6 py-3 rounded-xl font-bold border border-purple-200 hover:bg-purple-50 transition-all shadow-sm"
+          >
+            📊 Danışman KPI
+          </button>
+        </div>
+
+        {/* QUANTUM OS - İSTATİSTİKLER (FAZ 4) */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Toplam Talep</p>
+              <p className="text-3xl font-bold">{leads.length}</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">👥</div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">VIP & Sıcak Lead</p>
+              <p className="text-3xl font-bold text-yellow-600">
+                {leads.filter(l => l.intent_level === 'VIP' || l.intent_level === 'Hot').length}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-yellow-50 text-yellow-600 rounded-xl flex items-center justify-center text-xl">🔥</div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Aktif İlan</p>
+              <p className="text-3xl font-bold text-green-600">{activeProperties.length}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center text-xl">🏠</div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Bekleyen İlan</p>
+              <p className="text-3xl font-bold text-orange-600">{drafts.length}</p>
+            </div>
+            <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-xl">⏳</div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* SOL: YENİ İLAN EKLEME */}
           <div className="lg:col-span-7 bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
             <h2 className="text-2xl font-bold mb-6">Yeni İlan Ekle</h2>
             <form onSubmit={handleCreateProperty} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold mb-2">İlan Başlığı</label>
-                  <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full border p-3 rounded-xl" />
+                <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold mb-2">İlan Başlığı (TR)</label>
+                    <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full border p-3 rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-gray-500">İlan Başlığı (EN)</label>
+                    <input value={formData.title_en} onChange={e => setFormData({...formData, title_en: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2 text-gray-500">İlan Başlığı (AR)</label>
+                    <input value={formData.title_ar} onChange={e => setFormData({...formData, title_ar: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50" dir="rtl" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2">Fiyat (₺)</label>
@@ -219,9 +328,19 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold mb-2">Açıklama</label>
-                <textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full border p-3 rounded-xl"></textarea>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-2">Açıklama (TR)</label>
+                  <textarea required rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full border p-3 rounded-xl"></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-gray-500">Açıklama (EN)</label>
+                  <textarea rows={4} value={formData.description_en} onChange={e => setFormData({...formData, description_en: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50"></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-gray-500">Açıklama (AR)</label>
+                  <textarea rows={4} value={formData.description_ar} onChange={e => setFormData({...formData, description_ar: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50" dir="rtl"></textarea>
+                </div>
               </div>
 
               <div>
@@ -260,18 +379,61 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
               </div>
             </div>
 
-            {/* GELEN TALEPLER */}
+            {/* GELEN TALEPLER (QUANTUM OS SCORING) */}
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
               <h2 className="text-2xl font-bold mb-6">Gelen Talepler ({leads.length})</h2>
               <div className="space-y-4 max-h-[400px] overflow-y-auto">
                 {leads.map((lead: any) => (
-                  <div key={lead.id} className="border-b pb-4 last:border-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="font-bold text-blue-600">{lead.name}</span>
-                      <span className="text-xs text-gray-400">{new Date(lead.created_at).toLocaleDateString()}</span>
+                  <div key={lead.id} className="border p-5 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start mb-3 border-b pb-3">
+                      <div>
+                        <span className="font-bold text-lg block text-gray-900">{lead.full_name || lead.name}</span>
+                        <span className="text-xs text-gray-400">{new Date(lead.created_at).toLocaleString('tr-TR')}</span>
+                      </div>
+                      
+                      {/* AI Skor Göstergesi */}
+                      <div className="flex flex-col items-end gap-1">
+                        {lead.score ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">AI SCORE</span>
+                            <span className={`px-2 py-1 rounded font-mono font-bold text-xs
+                              ${lead.score >= 80 ? 'bg-green-100 text-green-700' : 
+                                lead.score >= 50 ? 'bg-yellow-100 text-yellow-700' : 
+                                'bg-red-100 text-red-700'}`}>
+                              {lead.score}/100
+                            </span>
+                          </div>
+                        ) : null}
+                        {lead.intent_level ? (
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border
+                            ${lead.intent_level === 'VIP' ? 'bg-purple-100 text-purple-700 border-purple-200' : 
+                              lead.intent_level === 'Hot' ? 'bg-red-100 text-red-700 border-red-200' : 
+                              lead.intent_level === 'Warm' ? 'bg-orange-100 text-orange-700 border-orange-200' : 
+                              'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                            {lead.intent_level}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600">📞 {lead.phone}</p>
-                    <p className="text-sm text-gray-600 mt-1">📍 {lead.district || 'Bölge Belirtilmemiş'}</p>
+
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <p className="text-sm text-gray-700">📞 <a href={`tel:${lead.phone}`} className="hover:text-blue-600">{lead.phone}</a></p>
+                      <p className="text-sm text-gray-700">📍 {lead.district || 'Belirtilmedi'}</p>
+                      <p className="text-sm text-gray-700">💰 {lead.budget || 'Belirtilmedi'}</p>
+                      <p className="text-sm text-gray-700">🏠 {lead.property_type || 'Belirtilmedi'}</p>
+                    </div>
+
+                    {lead.message && (
+                      <div className="bg-white p-3 rounded-xl border border-gray-100 text-sm text-gray-600">
+                        "{lead.message}"
+                      </div>
+                    )}
+                    
+                    {lead.source && (
+                      <div className="mt-3 text-right">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Kaynak: {lead.source}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -332,12 +494,27 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
                       </span>
                     </td>
                     <td className="py-4">
-                      <button 
-                        onClick={() => handleDelete(p.id)}
-                        className="text-red-500 hover:text-red-700 font-bold text-sm transition-colors"
-                      >
-                        Sil
-                      </button>
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => handleDownloadStory(p)}
+                          className="text-purple-500 hover:text-purple-700 font-bold text-sm transition-colors flex items-center gap-1"
+                          title="Günün Story'sini İndir"
+                        >
+                          📸 Story
+                        </button>
+                        <button 
+                          onClick={() => handleAIAnalysis(p.id)}
+                          className="text-blue-500 hover:text-blue-700 font-bold text-sm transition-colors flex items-center gap-1"
+                        >
+                          🤖 AI Analiz
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(p.id)}
+                          className="text-red-500 hover:text-red-700 font-bold text-sm transition-colors"
+                        >
+                          Sil
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
