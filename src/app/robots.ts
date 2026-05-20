@@ -5,7 +5,12 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin', '/api'], // Yönetim ve API gizli kalmalı
+      disallow: [
+        '/admin/',
+        '/api/',
+        '/*/admin/',
+        '/*/api/'
+      ],
     },
     sitemap: 'https://kaynakgayrimenkul.com/sitemap.xml',
   };

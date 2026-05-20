@@ -6,6 +6,7 @@ export const siteConfig = {
   name: "Kaynak Gayrimenkul",
   tagline: "Ankara Yatırım ve Lüks Konut Danışmanlığı",
   url: "https://kaynakgayrimenkul.com",
+  founders: ["Cafer Peksoy", "Refia Nur Peksoy"],
   contact: {
     phone: "0532 353 06 06", 
     phoneUrl: "+905323530606",

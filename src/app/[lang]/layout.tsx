@@ -6,6 +6,8 @@ import Nav from '@/components/layout/Nav';
 import Footer from '@/components/layout/Footer';
 import ExitIntentPopup from '@/components/ExitIntentPopup';
 import FloatingContact from '@/components/FloatingContact';
+import CookieConsent from '@/components/CookieConsent';
+import PushRegister from '@/components/PushRegister';
 import { getDictionary, Locale } from '@/getDictionary';
 import { siteConfig } from '@/config/site';
 
@@ -61,7 +63,9 @@ export async function generateMetadata(props: { params: Promise<{ lang: string }
       'geo.region': 'TR-06',
       'geo.placename': 'Ankara',
       'geo.position': '39.9334;32.8597',
-      'ICBM': '39.9334, 32.8597'
+      'ICBM': '39.9334, 32.8597',
+      'yandex-verification': 'd9e875a6c11b8b8f', // Yandex Webmaster doğrulama kodu
+      'google-site-verification': 'google_site_verification_placeholder' // Google Search Console doğrulama kodu
     }
   };
 }
@@ -151,6 +155,8 @@ export default async function RootLayout(props: {
         <Footer lang={lang} dict={dict.nav} />
         <ExitIntentPopup lang={lang} />
         <FloatingContact lang={lang} />
+        <CookieConsent />
+        <PushRegister />
       </body>
     </html>
   );

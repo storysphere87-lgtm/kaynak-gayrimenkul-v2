@@ -127,6 +127,21 @@ export default async function PropertyDetailPage(props: { params: Promise<{ lang
               ))}
             </div>
 
+            {/* VIRTUAL TOUR PLAYER: 3D VR (Matterport) Entegrasyonu */}
+            {property.virtual_tour_url && (
+              <div className="bg-white/[0.02] border border-white/5 p-8 rounded-[3rem] overflow-hidden shadow-2xl relative">
+                <p className="text-[10px] text-yellow-600 font-bold uppercase tracking-[0.3em] mb-4">🔮 3D / VR SANAL TUR TEKNOLOJİSİ</p>
+                <div className="aspect-video w-full rounded-2xl overflow-hidden border border-white/10 bg-black">
+                  <iframe 
+                    src={property.virtual_tour_url} 
+                    className="w-full h-full border-0"
+                    allowFullScreen 
+                    allow="xr-spatial-tracking"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* DESCRIPTION: TYPOGRAPHIC AUTHORITY */}
             <div className="space-y-8 max-w-4xl">
               <div className="flex items-center gap-4">

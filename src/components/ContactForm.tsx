@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { getUserBehaviorProfile } from '@/lib/tracker';
 
 interface ContactFormProps {
   dict: any;
@@ -17,6 +18,8 @@ export default function ContactForm({ dict, lang, districtName, propertyId, isRt
     e.preventDefault();
     setStatus('loading');
 
+    const behaviorData = getUserBehaviorProfile();
+
     const formData = new FormData(e.currentTarget);
     const data = {
       name: formData.get('name'),
@@ -24,7 +27,8 @@ export default function ContactForm({ dict, lang, districtName, propertyId, isRt
       message: formData.get('message'),
       district: districtName,
       property_id: propertyId,
-      source: 'Contact Form'
+      source: 'Contact Form',
+      behavior_data: behaviorData
     };
 
     try {

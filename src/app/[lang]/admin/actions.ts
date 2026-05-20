@@ -307,12 +307,38 @@ export async function updatePipelineStatusAction(propertyId: string, status: str
  */
 export async function getAgentKPIsAction() {
   try {
-    // Tüm danışmanları çek
-    const { data: advisors, error: aError } = await supabase
-      .from('advisors')
-      .select('id, name, title');
+    // 1. Önce profiles (gerçek kullanıcı/danışman) tablosunu deneyelim, yoksa advisors'ı deneyelim
+    let advisors: any[] = [];
     
-    if (aError) throw aError;
+    const { data: profiles, error: pError } = await supabase
+      .from('profiles')
+      .select('id, full_name, role');
+      
+    if (!pError && profiles && profiles.length > 0) {
+      advisors = profiles.map(p => ({
+        id: p.id,
+        name: p.full_name || 'İsimsiz Danışman',
+        title: p.role === 'admin' ? 'Broker / Yönetici' : 'Lüks Konut Uzmanı'
+      }));
+    } else {
+      // Fallback to advisors table
+      const { data: advList, error: aError } = await supabase
+        .from('advisors')
+        .select('id, name, title');
+      
+      if (!aError && advList) {
+        advisors = advList;
+      }
+    }
+
+    // Eğer sistemde hiç danışman yoksa varsayılan bir broker gösterelim (Boş kalmaması için)
+    if (advisors.length === 0) {
+      advisors = [{
+        id: '00000000-0000-0000-0000-000000000000',
+        name: 'Kaynak Gayrimenkul Broker',
+        title: 'Broker / Kurucu'
+      }];
+    }
 
     // Tüm leads verilerini çek
     const { data: allLeads } = await supabase
@@ -332,23 +358,28 @@ export async function getAgentKPIsAction() {
       const advLeads = allLeads?.filter(l => l.agent_id === adv.id) || [];
       const advTx = allTx?.filter(t => t.agent_id === adv.id) || [];
       
-      const totalLeads = advLeads.length;
+      // Eğer tek bir broker varsa ve agent_id eşleşmesi yoksa, tüm datayı broker'a atayalım (Başlangıç dostu)
+      const matches = advLeads.length > 0 || advTx.length > 0;
+      const finalLeads = (!matches && advisors.length === 1) ? (allLeads || []) : advLeads;
+      const finalTx = (!matches && advisors.length === 1) ? allTx : advTx;
+
+      const totalLeads = finalLeads.length;
       const averageLeadScore = totalLeads > 0 
-        ? Math.round(advLeads.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalLeads)
+        ? Math.round(finalLeads.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalLeads)
         : 0;
 
-      const totalSales = advTx.filter(t => t.status === 'Tamamlandı').length;
-      const totalVolume = advTx.filter(t => t.status === 'Tamamlandı')
+      const totalSales = finalTx.filter(t => t.status === 'Tamamlandı').length;
+      const totalVolume = finalTx.filter(t => t.status === 'Tamamlandı')
         .reduce((acc, curr) => acc + Number(curr.price || 0), 0);
 
-      const activeDeals = advTx.filter(t => t.status !== 'Tamamlandı' && t.status !== 'İptal').length;
+      const activeDeals = finalTx.filter(t => t.status !== 'Tamamlandı' && t.status !== 'İptal').length;
 
-      // Risk Analizi Vizyonu: Müşteri lead puanları çok yüksek ama satış yoksa "Risk" uyarısı ver.
+      // Risk Analizi
       let riskWarning = "";
       if (averageLeadScore > 75 && totalSales === 0 && totalLeads > 5) {
-        riskWarning = "Müşteri potansiyeli çok yüksek (Ort. Skor > 75) fakat satış kapatma oranı sıfır. Satış koçluğu desteği önerilir.";
+        riskWarning = "Müşteri potansiyeli çok yüksek (Ort. Skor > 75) fakat satış kapatma oranı sıfır. Yakın takip desteği önerilir.";
       } else if (totalLeads === 0) {
-        riskWarning = "Bu ay hiç lead almadı. Saha aktivitesi veya portal dağıtımı kontrol edilmeli.";
+        riskWarning = "Bu dönem aktif lead almadı. Portal ilanları veya saha aktivitesi kontrol edilmeli.";
       }
 
       return {
@@ -365,6 +396,128 @@ export async function getAgentKPIsAction() {
     });
 
     return { success: true, data: kpiData };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Tüm kullanıcı profillerini çeker (Broker/Admin yetkisiyle)
+ */
+export async function getAllProfilesAction() {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name');
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Broker'ın yeni bir danışman (agent) oluşturmasını sağlar (Otonom e-posta doğrulama onaylı)
+ */
+export async function createAdvisorAction(email: string, password: string, fullName: string, phone: string, role: 'admin' | 'agent' = 'agent') {
+  try {
+    // 1. Auth tablosunda kullanıcı oluştur (email_confirm: true ile aktivasyon gerekmez!)
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        role,
+        full_name: fullName
+      }
+    });
+
+    if (authError) throw authError;
+
+    if (authData?.user) {
+      // 2. Profiles tablosuna (trigger oluşturmuş olsa da telefon gibi bilgileri eklemek için) upsert yapalım
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: authData.user.id,
+          role,
+          full_name: fullName,
+          phone
+        });
+
+      if (profileError) throw profileError;
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Danışman profil bilgilerini günceller (Admin veya kullanıcının kendisi yapabilir)
+ */
+export async function updateAdvisorAction(id: string, fullName: string, phone: string, role: 'admin' | 'agent', email?: string) {
+  try {
+    // 1. Profil tablosunu güncelle
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        full_name: fullName,
+        phone,
+        role
+      })
+      .eq('id', id);
+
+    if (profileError) throw profileError;
+
+    // 2. Eğer email adresi de güncellenmek istendiyse auth.users tablosunda güncelle
+    if (email) {
+      const { error: authError } = await supabase.auth.admin.updateUserById(id, {
+        email,
+        email_confirm: true, // E-posta aktivasyon beklemesini devre dışı bırakıp doğrudan doğrular
+        user_metadata: {
+          role,
+          full_name: fullName
+        }
+      });
+      if (authError) throw authError;
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Danışmanı sistemden ve auth tablosundan tamamen siler (Broker yetkisiyle)
+ */
+export async function deleteAdvisorAction(id: string) {
+  try {
+    // Auth kullanıcısını sildiğimizde, cascading foreign key'ler sayesinde profil ve ilişkili bağımlılıklar otomatik silinir
+    const { error } = await supabase.auth.admin.deleteUser(id);
+    if (error) throw error;
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Danışmanın şifresini sıfırlar / değiştirir (Broker yetkisiyle veya kullanıcının kendisi)
+ */
+export async function resetAdvisorPasswordAction(id: string, newPassword: string) {
+  try {
+    const { error } = await supabase.auth.admin.updateUserById(id, {
+      password: newPassword
+    });
+
+    if (error) throw error;
+    return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

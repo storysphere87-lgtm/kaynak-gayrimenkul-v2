@@ -16,6 +16,10 @@ const STORAGE_KEY = 'quantum_behavior_profile';
 export function trackPropertyVisit(property: { id: string; price: number; district: string }) {
   if (typeof window === 'undefined') return;
 
+  // Yasal KVKK Kontrolü (GDPR Compliance)
+  const consent = localStorage.getItem('quantum_cookie_consent');
+  if (consent !== 'all') return; // İzin yoksa izlemeyi durdur
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     let profile: UserBehaviorProfile = raw 

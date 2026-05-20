@@ -1,27 +1,23 @@
-// Merkezi Yapılandırma Dosyası
-// Sitedeki tüm iletişim ve temel marka ayarları tek bir yerden yönetilir.
+import { siteConfig } from '../config/site';
 
 export const SITE_CONFIG = {
   brand: {
-    name: 'Kaynak Gayrimenkul',
-    tagline: 'Ankara Yatırım ve Lüks Konut Danışmanlığı',
-    founders: ['Cafer Peksoy', 'Refia Nur Peksoy']
+    name: siteConfig.name,
+    tagline: siteConfig.tagline,
+    founders: siteConfig.founders
   },
   contact: {
-    phone: '+905320000000', // Buraya gerçek numara girilecek
-    phoneDisplay: '+90 532 000 00 00',
+    phone: siteConfig.contact.phoneUrl,
+    phoneDisplay: siteConfig.contact.phone,
     whatsappMessage: 'Merhaba, yatırımlık lüks portföyleriniz hakkında bilgi almak istiyorum.',
-    email: 'fixankara1@gmail.com',
-    address: 'Çankaya, Ankara, Türkiye',
-    workingHours: 'Pzt-Cmt: 09:00 - 19:00'
+    email: siteConfig.contact.email,
+    address: siteConfig.contact.address,
+    workingHours: siteConfig.contact.workingHours
   },
-  social: {
-    instagram: 'https://instagram.com/kaynakgayrimenkul',
-    facebook: 'https://facebook.com/kaynakgayrimenkul',
-    linkedin: 'https://linkedin.com/company/kaynakgayrimenkul'
-  },
+  social: siteConfig.social,
   urls: {
-    base: 'https://kaynakgayrimenkul.com',
+    base: siteConfig.url,
     admin: '/admin'
   }
 };
+

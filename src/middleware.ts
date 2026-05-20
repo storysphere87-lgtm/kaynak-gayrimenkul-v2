@@ -1,38 +1,90 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { updateSession } from './lib/supabase/middleware';
 
 const locales = ['tr', 'en', 'ar'];
 const defaultLocale = 'tr';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Protect Admin Routes (both /admin and /[lang]/admin)
+  // 1. Update Supabase session and get user & response
+  const { supabaseResponse, user, supabase } = await updateSession(request);
+
+  // 2. Identify Paths
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/') || locales.some(lang => pathname === `/${lang}/admin` || pathname.startsWith(`/${lang}/admin/`));
   const isLoginPath = pathname === '/admin/login' || locales.some(lang => pathname === `/${lang}/admin/login`);
 
+  // Admin Only Restricted Paths (Agents cannot enter)
+  const adminOnlyPaths = ['/kpi', '/settings'];
+  const isRestrictedAdminPath = adminOnlyPaths.some(p => pathname.includes(p));
+
+  // 3. Auth Guard
   if (isAdminPath && !isLoginPath) {
-    const authCookie = request.cookies.get('admin_session');
-    if (authCookie?.value !== 'authenticated') {
+    if (!user) {
+      // Not logged in -> Redirect to login
       const loginUrl = new URL('/admin/login', request.url);
       return NextResponse.redirect(loginUrl);
     }
+
+    // RBAC: Check role if trying to access restricted admin pages
+    if (isRestrictedAdminPath) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        // Agent trying to access admin-only page -> Redirect to pipeline
+        const fallbackUrl = new URL(`/${defaultLocale}/admin/pipeline`, request.url);
+        return NextResponse.redirect(fallbackUrl);
+      }
+    }
   }
 
-  // Check if there is any supported locale in the pathname
+  // 4. If logged in and trying to access login page, redirect to dashboard
+  if (isAdminPath && isLoginPath && user) {
+    const dashboardUrl = new URL(`/${defaultLocale}/admin`, request.url);
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  // 5. Locale Routing Logic
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
 
-  if (pathnameHasLocale) return;
-  if (pathname.startsWith('/admin')) return;
+  if (pathnameHasLocale) return supabaseResponse;
+  
+  // Dil öneki (locale) olmayan admin yollarını otomatik /tr/admin'e yönlendirelim (Çökmeleri tamamen engeller)
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    const localizedPath = `/${defaultLocale}${pathname}`;
+    const redirectUrl = new URL(localizedPath, request.url);
+    
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    // Supabase session çerezlerini kopyalayalım
+    supabaseResponse.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectResponse;
+  }
+  
+  if (pathname.startsWith('/api')) return supabaseResponse;
 
   // Redirect if there is no locale
   request.nextUrl.pathname = `/${defaultLocale}${pathname === '/' ? '' : pathname}`;
-  return NextResponse.redirect(request.nextUrl);
+  
+  const finalResponse = NextResponse.redirect(request.nextUrl);
+  
+  // Copy cookies from supabaseResponse to the final redirect response
+  supabaseResponse.cookies.getAll().forEach(cookie => {
+    finalResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+
+  return finalResponse;
 }
 
 export const config = {
-  // Matcher ignoring `/_next/` and `/api/`
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  // Matcher ignoring `/_next/` and static files
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };

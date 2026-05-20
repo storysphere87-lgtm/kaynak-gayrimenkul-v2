@@ -71,19 +71,38 @@ export async function evaluateLead(leadData: any): Promise<{ score: number, inte
   
   if (!apiKey) return defaultResult;
 
-  const prompt = `
-Sen "Kaynak Gayrimenkul Quantum OS" sisteminin yapay zeka analiz motorusun.
-Aşağıdaki potansiyel müşteri (lead) talebini analiz et ve ona 0 ile 100 arasında bir "score" ve niyet seviyesini belirten bir "intent_level" (Cold, Warm, Hot, VIP seçeneklerinden biri) ata.
-Müşteri mesajı ne kadar spesifikse ve bütçe ne kadar yüksek/netse skor o kadar yüksek olmalıdır.
-Lütfen sadece geçerli bir JSON objesi döndür, markdown veya başka bir metin kullanma. 
-Format: {"score": 85, "intent_level": "Hot"}
+  const behaviorInfo = leadData.behavior_data ? `
+  - Ziyaret Ettiği İlan Sayısı: ${leadData.behavior_data.totalViews || 0}
+  - İncelediği Bölgeler: ${JSON.stringify(leadData.behavior_data.preferredDistricts || {})}
+  - İncelediği İlanların Ort. Bütçesi: ${leadData.behavior_data.averageBudget || 0} TL
+  - İncelediği En Yüksek Fiyatlı İlan: ${leadData.behavior_data.highestPriceViewed || 0} TL
+  - İncelediği İlan Detayları: ${JSON.stringify(leadData.behavior_data.viewedProperties || [])}
+  ` : 'Tarayıcıda ayak izi kaydı yok (GDPR izni verilmemiş olabilir veya ilk ziyaret).';
 
-Müşteri Verisi:
-Bölge: ${leadData.district || 'Belirtilmedi'}
-Bütçe: ${leadData.budget || 'Belirtilmedi'}
-İşlem Tipi: ${leadData.propertyType || 'Belirtilmedi'}
-Mesaj: ${leadData.message || 'Yok'}
-`;
+  const prompt = `
+  Sen "Kaynak Gayrimenkul Quantum OS" sisteminin kıdemli müşteri istihbarat ve veri analiz yapay zekasısın.
+  Aşağıdaki form verilerini ve kullanıcının sitedeki **gizli/anonim dijital ayak izi verilerini (Çerez Davranışı)** analiz et.
+  
+  Müşteri için 0 ile 100 arasında bir "score" ve niyet seviyesini belirten bir "intent_level" (Cold, Warm, Hot, VIP seçeneklerinden biri) ata.
+  
+  Skorlama Kriterleri:
+  - Formdaki bütçe ile incelediği ilanların fiyat aralığı uyuşuyorsa skor yüksektir.
+  - Sadece 1 ilana bakıp hemen form doldurduysa Warm, sitenin altını üstüne getirip (yüksek totalViews) form doldurduysa Hot/VIP seviyesindedir.
+  - Lüks konut bölgesindeki (Çankaya, Gölbaşı) mülklere ilgi gösterdiyse VIP potansiyelindedir.
+  
+  Lütfen sadece geçerli bir JSON objesi döndür, markdown veya başka bir metin kullanma. 
+  Format: {"score": 85, "intent_level": "Hot"}
+  
+  Müşteri Form Verileri:
+  - İsim: ${leadData.name || 'Belirtilmedi'}
+  - Bölge Tercihi: ${leadData.district || 'Belirtilmedi'}
+  - Bütçe Tercihi: ${leadData.budget || 'Belirtilmedi'}
+  - İşlem Tipi: ${leadData.propertyType || 'Belirtilmedi'}
+  - Mesaj: ${leadData.message || 'Yok'}
+  
+  Kullanıcının Sitedeki Dijital Ayak İzi (Çerez Verisi):
+  ${behaviorInfo}
+  `;
 
   try {
     let aiText = '';

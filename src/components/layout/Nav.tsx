@@ -63,6 +63,9 @@ export default function Nav({ lang, dict }: { lang: string, dict: any }) {
                     ))}
                 </div>
                 <div className={`nav-cta flex items-center gap-4 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                    <Link href={`/${lang}/admin/login`} className="portal-btn">
+                        Portal Girişi ✦
+                    </Link>
                     <div className="relative">
                         <button 
                             className="bg-gray-800/50 hover:bg-gray-700 border border-gray-700 px-3 py-1.5 rounded-md text-sm font-bold tracking-widest flex items-center gap-2 transition-all"
@@ -72,12 +75,12 @@ export default function Nav({ lang, dict }: { lang: string, dict: any }) {
                             <span className="text-[10px]">▼</span>
                         </button>
                         {langMenuOpen && (
-                            <div className="absolute top-full mt-2 right-0 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-2xl flex flex-col min-w-[100px]">
+                            <div className="absolute top-full mt-2 right-0 bg-gray-950 border border-yellow-500/20 rounded-lg overflow-hidden shadow-2xl flex flex-col min-w-[100px] z-[9999]">
                                 {['tr', 'en', 'ar'].map(l => (
                                     <button 
                                         key={l}
                                         onClick={() => handleLangSwitch(l)}
-                                        className={`px-4 py-2 text-sm text-left hover:bg-gray-800 transition-colors ${lang === l ? 'text-yellow-500 font-bold' : 'text-white'}`}
+                                        className={`px-4 py-2 text-sm text-left hover:bg-gray-900 transition-colors ${lang === l ? 'text-yellow-500 font-bold' : 'text-white'}`}
                                     >
                                         {l.toUpperCase()}
                                     </button>
@@ -119,6 +122,25 @@ export default function Nav({ lang, dict }: { lang: string, dict: any }) {
                     font-weight: 700;
                     letter-spacing: 0.2em;
                     color: white;
+                }
+                .portal-btn {
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                    color: rgba(255, 255, 255, 0.7) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                    padding: 8px 16px;
+                    border-radius: 9999px;
+                    transition: all 0.3s ease;
+                    background: rgba(255, 255, 255, 0.02);
+                    text-decoration: none;
+                }
+                .portal-btn:hover {
+                    color: #d4af37 !important;
+                    border-color: rgba(212, 175, 55, 0.4) !important;
+                    background: rgba(212, 175, 55, 0.05) !important;
+                    box-shadow: 0 0 15px rgba(212, 175, 55, 0.05);
                 }
             `}</style>
         </div>

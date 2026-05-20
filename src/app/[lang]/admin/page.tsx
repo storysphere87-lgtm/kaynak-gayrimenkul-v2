@@ -4,9 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getLeads, uploadImage, createProperty } from '@/lib/admin';
 import { getAllDistricts } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { Shield, User, Image as ImageIcon, Briefcase, FileText, GraduationCap, Settings, Sparkles, BarChart3, LogOut, Plus, QrCode, Copy, ExternalLink, X } from 'lucide-react';
 
 export default function AdminDashboard({ params }: { params: { lang: string } }) {
   const router = useRouter();
+  const [userRole, setUserRole] = useState<'admin' | 'agent' | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [districts, setDistricts] = useState<any[]>([]);
   const [drafts, setDrafts] = useState<any[]>([]);
@@ -15,13 +19,9 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
-
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
+  
+  // Dashboard QR Modal State
+  const [showDashboardQR, setShowDashboardQR] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -41,8 +41,15 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   useEffect(() => {
-    async function checkAuth() {
-      const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  useEffect(() => {
+    async function checkAuthAndFetch() {
+      const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
         router.push(`/${params.lang}/admin/login`);
@@ -51,33 +58,47 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
 
       // Role kontrolü (JWT içinden kontrol)
       const role = session.user.user_metadata?.role;
-      if (role !== 'admin') {
-        setNotification({ message: 'Yetkisiz Erişim! Bu panel sadece yöneticiler içindir.', type: 'error' });
-        await (await import('@/lib/supabase')).supabase.auth.signOut();
+      if (role !== 'admin' && role !== 'agent') {
+        setNotification({ message: 'Yetkisiz Erişim! Geçersiz Kullanıcı Rolü.', type: 'error' });
+        await supabase.auth.signOut();
         router.push(`/${params.lang}/admin/login`);
         return;
       }
 
-      fetchData();
-    }
+      setUserRole(role);
+      setCurrentUser({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.user_metadata?.full_name || 'Danışman',
+        role: role
+      });
 
-    async function fetchData() {
+      // Veri Çekme Akışı (Rol Bazlı Filtreleme ile)
       try {
-        const supabase = (await import('@/lib/supabase')).supabase;
-        const [leadsData, districtsData, settingsRes] = await Promise.all([
-          getLeads(),
+        const [districtsData, settingsRes] = await Promise.all([
           getAllDistricts(),
           supabase.from('settings').select('*')
         ]);
-        setLeads(leadsData);
+        
         setDistricts(districtsData);
         setSettings(settingsRes.data || []);
-        
-        // İlanları çek
-        const { data: allProps } = await supabase
-          .from('properties')
-          .select('*')
-          .order('created_at', { ascending: false });
+
+        // 1. Leads (Müşteri Talepleri) Filtreleme
+        let leadsQuery = supabase.from('leads').select('*');
+        if (role === 'agent') {
+          // Danışman sadece kendisine atanmış leads'i görsün
+          leadsQuery = leadsQuery.eq('agent_id', session.user.id);
+        }
+        const { data: leadsData } = await leadsQuery.order('created_at', { ascending: false });
+        setLeads(leadsData || []);
+
+        // 2. İlanları Çekme (Danışman filtrelemesi ile)
+        let propsQuery = supabase.from('properties').select('*');
+        if (role === 'agent') {
+          // Danışman sadece kendi oluşturduğu/yönettiği ilanları görsün
+          propsQuery = propsQuery.eq('agent_id', session.user.id);
+        }
+        const { data: allProps } = await propsQuery.order('created_at', { ascending: false });
         
         setDrafts(allProps?.filter(p => p.status === 'taslak') || []);
         setActiveProperties(allProps?.filter(p => p.status !== 'taslak') || []);
@@ -89,11 +110,11 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
       }
     }
 
-    checkAuth();
-  }, [params.lang]);
+    checkAuthAndFetch();
+  }, [params.lang, router]);
 
   const handleLogout = async () => {
-    await (await import('@/lib/supabase')).supabase.auth.signOut();
+    await supabase.auth.signOut();
     router.push(`/${params.lang}/admin/login`);
   };
 
@@ -159,7 +180,6 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
       const { createPropertyAction } = await import('./actions');
       const formDataToSend = new FormData();
       
-      // Form verilerini doldur
       formDataToSend.append('title', formData.title);
       formDataToSend.append('title_en', formData.title_en);
       formDataToSend.append('title_ar', formData.title_ar);
@@ -173,14 +193,34 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
       formDataToSend.append('description_en', formData.description_en);
       formDataToSend.append('description_ar', formData.description_ar);
       
-      // Resimleri ekle
       selectedFiles.forEach(file => {
         formDataToSend.append('images', file);
       });
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        formDataToSend.append('agent_id', session.user.id);
+      }
+
       const result = await createPropertyAction(formDataToSend, params.lang);
 
       if (result.success) {
+        if (session) {
+          const { data: latestProp } = await supabase
+            .from('properties')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+          if (latestProp) {
+            await supabase
+              .from('properties')
+              .update({ agent_id: session.user.id })
+              .eq('id', latestProp.id);
+          }
+        }
+
         setNotification({ message: 'İlan başarıyla oluşturuldu!', type: 'success' });
         window.location.reload();
       } else {
@@ -193,13 +233,14 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
     }
   };
 
-  if (loading) return <div className="p-20 text-center">Yükleniyor...</div>;
+  if (loading) return <div className="p-20 text-center text-gray-500 font-bold bg-gray-950 min-h-screen">Yükleniyor...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pt-24 pb-20">
-      {/* PROFESSIONAL NOTIFICATION BANNER */}
+    <div className="min-h-screen bg-gray-950 text-gray-100 pt-24 pb-20 relative">
+      
+      {/* NOTIFICATION BANNER */}
       {notification && (
-        <div className={`fixed top-10 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-top-10 duration-500 ${
+        <div className={`fixed top-10 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-2xl shadow-2xl ${
           notification.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
         }`}>
           <div className="flex items-center gap-3 font-bold">
@@ -210,228 +251,346 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
       )}
 
       <div className="container mx-auto px-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-4xl font-bold">Yönetim Paneli</h1>
+        
+        {/* HEADER BAR */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+          <div>
+            <span className="text-yellow-600 text-xs font-bold uppercase tracking-[0.4em] mb-2 block">Kaynak Gayrimenkul</span>
+            <h1 className="text-4xl md:text-5xl font-serif font-bold text-white flex items-center gap-3">
+              {userRole === 'admin' ? 'Yönetim & Broker Kokpiti' : 'Danışman Operasyon Portalı'}
+            </h1>
+          </div>
           <button 
             onClick={handleLogout}
-            className="bg-red-50 text-red-600 px-6 py-2 rounded-xl font-bold hover:bg-red-100 transition-all"
+            className="bg-white/5 border border-white/10 hover:border-red-500/50 hover:text-red-500 px-8 py-3 rounded-2xl font-bold transition-all flex items-center gap-2"
           >
-            Güvenli Çıkış
+            <LogOut size={16} /> Güvenli Çıkış
           </button>
         </div>
 
-        {/* QUICK NAVIGATION */}
-        <div className="flex gap-4 mb-12">
+        {/* QUICK NAVIGATION PANEL */}
+        <div className="flex flex-wrap gap-4 mb-12">
           <button 
             onClick={() => router.push(`/${params.lang}/admin`)}
-            className="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold shadow-md"
+            className="bg-yellow-600 text-gray-950 px-8 py-3 rounded-xl font-bold shadow-lg shadow-yellow-600/10 flex items-center gap-2"
           >
-            İlanlar & Talepler
+            <Shield size={16} /> İlanlar & Talepler
           </button>
+          
           <button 
             onClick={() => router.push(`/${params.lang}/admin/egitim`)}
-            className="bg-white text-gray-700 px-6 py-3 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all"
+            className="bg-white/5 text-white border border-white/10 hover:border-yellow-600/30 px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2"
           >
-            🎓 Eğitimleri Yönet
+            <GraduationCap size={16} /> 🎓 Eğitimler
           </button>
+          
           <button 
             onClick={() => router.push(`/${params.lang}/admin/belgeler`)}
-            className="bg-white text-gray-700 px-6 py-3 rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all"
+            className="bg-white/5 text-white border border-white/10 hover:border-yellow-600/30 px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2"
           >
-            📄 Belgeleri Yönet
+            <FileText size={16} /> 📄 Belgeler
           </button>
+          
           <button 
             onClick={() => router.push(`/${params.lang}/admin/pipeline`)}
-            className="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold border border-blue-200 hover:bg-blue-50 transition-all shadow-sm"
+            className="bg-white/5 text-white border border-white/10 hover:border-yellow-600/30 px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2"
           >
-            💼 İşlem Takibi (Kanban)
+            <Briefcase size={16} /> 💼 İşlem Takibi (Kanban)
           </button>
+          
           <button 
-            onClick={() => router.push(`/${params.lang}/admin/kpi`)}
-            className="bg-white text-purple-600 px-6 py-3 rounded-xl font-bold border border-purple-200 hover:bg-purple-50 transition-all shadow-sm"
+            onClick={() => router.push(`/${params.lang}/admin/sosyal-medya`)}
+            className="bg-white/5 text-yellow-500 border border-yellow-500/20 hover:bg-yellow-500 hover:text-gray-950 px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2"
           >
-            📊 Danışman KPI
+            <Sparkles size={16} /> 📸 Sosyal Medya Stüdyosu
+          </button>
+
+          {userRole === 'admin' && (
+            <button 
+              onClick={() => router.push(`/${params.lang}/admin/kpi`)}
+              className="bg-white/5 text-purple-400 border border-purple-500/20 hover:bg-purple-500 hover:text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2"
+            >
+              <BarChart3 size={16} /> 📊 Danışman KPI
+            </button>
+          )}
+
+          <button 
+            onClick={() => router.push(`/${params.lang}/admin/profil`)}
+            className="bg-white/5 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500 hover:text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2"
+          >
+            <Settings size={16} /> ⚙️ Profil & Danışman Yönetimi
           </button>
         </div>
 
-        {/* QUANTUM OS - İSTATİSTİKLER (FAZ 4) */}
+        {/* METRICS & COUNTERS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Toplam Talep</p>
-              <p className="text-3xl font-bold">{leads.length}</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">
+                {userRole === 'admin' ? 'Toplam Talep' : 'Bana Özel Talepler'}
+              </p>
+              <p className="text-3xl font-bold text-white font-mono">{leads.length}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">👥</div>
+            <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center text-xl font-bold">👥</div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">VIP & Sıcak Lead</p>
-              <p className="text-3xl font-bold text-yellow-600">
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">VIP & Sıcak Müşteri</p>
+              <p className="text-3xl font-bold text-yellow-500 font-mono">
                 {leads.filter(l => l.intent_level === 'VIP' || l.intent_level === 'Hot').length}
               </p>
             </div>
-            <div className="w-12 h-12 bg-yellow-50 text-yellow-600 rounded-xl flex items-center justify-center text-xl">🔥</div>
+            <div className="w-12 h-12 bg-yellow-500/10 text-yellow-500 rounded-xl flex items-center justify-center text-xl font-bold">🔥</div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Aktif İlan</p>
-              <p className="text-3xl font-bold text-green-600">{activeProperties.length}</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">
+                {userRole === 'admin' ? 'Toplam Aktif İlan' : 'Aktif Portföylerim'}
+              </p>
+              <p className="text-3xl font-bold text-green-500 font-mono">{activeProperties.length}</p>
             </div>
-            <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center text-xl">🏠</div>
+            <div className="w-12 h-12 bg-green-500/10 text-green-500 rounded-xl flex items-center justify-center text-xl font-bold">🏠</div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Bekleyen İlan</p>
-              <p className="text-3xl font-bold text-orange-600">{drafts.length}</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Eklentiden Gelen / Bekleyen</p>
+              <p className="text-3xl font-bold text-orange-500 font-mono">{drafts.length}</p>
             </div>
-            <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-xl">⏳</div>
+            <div className="w-12 h-12 bg-orange-500/10 text-orange-500 rounded-xl flex items-center justify-center text-xl font-bold">⏳</div>
           </div>
         </div>
 
+        {/* TWO-COLUMN CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* SOL: YENİ İLAN EKLEME */}
-          <div className="lg:col-span-7 bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
-            <h2 className="text-2xl font-bold mb-6">Yeni İlan Ekle</h2>
+          
+          {/* LEFT PANEL: PROPERTY BUILDER */}
+          <div className="lg:col-span-7 bg-gray-900 border border-white/10 rounded-[2.5rem] p-8 md:p-10 relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-600/5 blur-[50px] rounded-full"></div>
+            
+            <h2 className="text-2xl font-serif font-bold text-white mb-6 flex items-center gap-2">
+              <Plus className="text-yellow-500" size={20} /> Yeni Portföy Girişi
+            </h2>
+            
             <form onSubmit={handleCreateProperty} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
                 <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-bold mb-2">İlan Başlığı (TR)</label>
-                    <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full border p-3 rounded-xl" />
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Başlık (TR)</label>
+                    <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-sm transition-all" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold mb-2 text-gray-500">İlan Başlığı (EN)</label>
-                    <input value={formData.title_en} onChange={e => setFormData({...formData, title_en: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50" />
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Başlık (EN)</label>
+                    <input value={formData.title_en} onChange={e => setFormData({...formData, title_en: e.target.value})} className="w-full bg-gray-950 border border-white/5 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-sm transition-all" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold mb-2 text-gray-500">İlan Başlığı (AR)</label>
-                    <input value={formData.title_ar} onChange={e => setFormData({...formData, title_ar: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50" dir="rtl" />
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Başlık (AR)</label>
+                    <input value={formData.title_ar} onChange={e => setFormData({...formData, title_ar: e.target.value})} className="w-full bg-gray-950 border border-white/5 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-sm transition-all" dir="rtl" />
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-bold mb-2">Fiyat (₺)</label>
-                  <input required type="number" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full border p-3 rounded-xl" />
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Fiyat (₺)</label>
+                  <input required type="number" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-sm transition-all font-mono" />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-2">Bölge</label>
-                  <select required value={formData.district_id} onChange={e => setFormData({...formData, district_id: e.target.value})} className="w-full border p-3 rounded-xl">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Seçkin Bölge</label>
+                  <select required value={formData.district_id} onChange={e => setFormData({...formData, district_id: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-xs transition-all cursor-pointer">
                     <option value="">Seçiniz</option>
                     {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-2">İşlem Tipi</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full border p-3 rounded-xl">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">İşlem Tipi</label>
+                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-xs transition-all cursor-pointer">
                     <option value="Satılık">Satılık</option>
                     <option value="Kiralık">Kiralık</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Oda Sayısı</label>
+                  <input required value={formData.rooms} onChange={e => setFormData({...formData, rooms: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-sm transition-all" placeholder="Örn: 4+1" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Brüt m²</label>
+                  <input required type="number" value={formData.sqm} onChange={e => setFormData({...formData, sqm: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-sm transition-all font-mono" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Kategori</label>
+                  <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-xs transition-all cursor-pointer">
+                    <option value="Daire">Lüks Konut</option>
+                    <option value="Villa">Villa / Malikane</option>
+                    <option value="Ticari">Ticari Gayrimenkul</option>
+                    <option value="Arsa">Arsa / Arazi</option>
+                  </select>
+                </div>
+
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-bold mb-2">Açıklama (TR)</label>
-                  <textarea required rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full border p-3 rounded-xl"></textarea>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Açıklama (TR)</label>
+                  <textarea required rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-gray-950 border border-white/10 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-xs transition-all"></textarea>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-500">Açıklama (EN)</label>
-                  <textarea rows={4} value={formData.description_en} onChange={e => setFormData({...formData, description_en: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50"></textarea>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Açıklama (EN)</label>
+                  <textarea rows={4} value={formData.description_en} onChange={e => setFormData({...formData, description_en: e.target.value})} className="w-full bg-gray-950 border border-white/5 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-xs transition-all"></textarea>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-500">Açıklama (AR)</label>
-                  <textarea rows={4} value={formData.description_ar} onChange={e => setFormData({...formData, description_ar: e.target.value})} className="w-full border p-3 rounded-xl bg-gray-50" dir="rtl"></textarea>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Açıklama (AR)</label>
+                  <textarea rows={4} value={formData.description_ar} onChange={e => setFormData({...formData, description_ar: e.target.value})} className="w-full bg-gray-950 border border-white/5 p-3.5 rounded-xl text-white focus:border-yellow-500 outline-none text-xs transition-all" dir="rtl"></textarea>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold mb-2">Resimler (Çoklu Seçebilirsiniz)</label>
-                <input type="file" multiple accept="image/*" onChange={e => setSelectedFiles(Array.from(e.target.files || []))} className="w-full" />
+              <div className="flex flex-col gap-2">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Görsel Dosyaları</label>
+                <input type="file" multiple accept="image/*" onChange={e => setSelectedFiles(Array.from(e.target.files || []))} className="w-full border border-white/10 bg-gray-950 p-3 rounded-xl text-xs text-gray-400 cursor-pointer" />
               </div>
 
-              <button disabled={uploading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all">
-                {uploading ? 'Yükleniyor...' : 'İlanı Yayınla'}
+              <button disabled={uploading} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-bold py-4 rounded-xl transition-all shadow-xl shadow-yellow-600/10 active:scale-[0.98] mt-4">
+                {uploading ? 'İlan Görselleri Yükleniyor...' : 'Yeni İlanı Yayına Al'}
               </button>
             </form>
           </div>
 
-          {/* SAĞ: GELEN TALEPLER VE TASLAKLAR */}
+          {/* RIGHT PANEL: LEADS, APPROVALS & WIN CARD PREVIEW */}
           <div className="lg:col-span-5 space-y-8">
-            {/* TASLAKLAR (Eklentiden Gelenler) */}
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-yellow-500/50 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[10px] px-3 py-1 font-bold">EKLEME BEKLEYENLER</div>
-              <h2 className="text-2xl font-bold mb-6">Onay Bekleyenler ({drafts.length})</h2>
-              <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                {drafts.length === 0 && <p className="text-gray-400 italic">Şu an onay bekleyen ilan yok.</p>}
-                {drafts.map((draft: any) => (
-                  <div key={draft.id} className="border p-4 rounded-2xl bg-gray-50 flex justify-between items-center">
+            
+            {/* WIN CARD CONTROL PANEL */}
+            {currentUser && (
+              <div className="bg-gray-900 border border-white/10 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-600/5 blur-[50px] rounded-full"></div>
+                <span className="absolute top-0 right-0 bg-yellow-600 text-gray-950 text-[9px] font-extrabold px-4 py-1.5 uppercase tracking-widest rounded-bl-2xl">
+                  DIJITAL KARTVIZIT
+                </span>
+                
+                <h2 className="text-xl font-serif font-bold text-white mb-2">Win Card Profilim</h2>
+                <p className="text-xs text-gray-500 mb-6">Müşterilerinizle paylaşabileceğiniz dijital kimliğiniz.</p>
+                
+                <div className="flex flex-col gap-4">
+                  <div className="bg-gray-950 border border-white/5 p-4 rounded-2xl flex items-center justify-between">
                     <div>
-                      <p className="font-bold text-sm">{draft.title}</p>
-                      <p className="text-xs text-gray-500">{draft.district_id} | {draft.price} ₺</p>
+                      <p className="text-sm font-bold text-white">{currentUser.name}</p>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">{currentUser.role === 'admin' ? 'Broker / Yönetici' : 'Gayrimenkul Danışmanı'}</p>
+                    </div>
+                    
+                    <button 
+                      onClick={() => setShowDashboardQR(true)}
+                      className="bg-yellow-600/10 hover:bg-yellow-600 text-yellow-500 hover:text-gray-950 border border-yellow-600/20 px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
+                    >
+                      <QrCode size={12} /> QR Kod
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <a 
+                      href={`/${params.lang}/wincard/${currentUser.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-center bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <ExternalLink size={12} /> Kartı Gör
+                    </a>
+                    
+                    <a 
+                      href={`/api/vcard?agentId=${currentUser.id}`}
+                      className="text-center bg-yellow-600 hover:bg-yellow-500 text-gray-950 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <FileText size={12} /> Rehbere Ekle
+                    </a>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      const url = `${window.location.origin}/${params.lang}/wincard/${currentUser.id}`;
+                      navigator.clipboard.writeText(url);
+                      setNotification({ message: 'Win Card bağlantısı panoya kopyalandı!', type: 'success' });
+                    }}
+                    className="w-full bg-white/[0.02] hover:bg-white/5 border border-white/5 text-gray-400 hover:text-white py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Copy size={10} /> Bağlantıyı Kopyala
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ONAY BEKLEYENLER (EKLENTİDEN / SCRAPER'DAN GELENLER) */}
+            <div className="bg-gray-900 border border-white/10 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+              <span className="absolute top-0 right-0 bg-yellow-600 text-gray-950 text-[9px] font-extrabold px-4 py-1.5 uppercase tracking-widest rounded-bl-2xl">
+                ONAY BEKLEYENLER
+              </span>
+              
+              <h2 className="text-xl font-serif font-bold text-white mb-6">Onay Bekleyen Taslaklar ({drafts.length})</h2>
+              
+              <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
+                {drafts.length === 0 && <p className="text-gray-500 italic text-xs">Şu an onay bekleyen taslak ilanınız bulunmuyor.</p>}
+                {drafts.map((draft: any) => (
+                  <div key={draft.id} className="border border-white/5 p-4 rounded-2xl bg-white/[0.01] hover:bg-white/[0.03] flex justify-between items-center transition-all">
+                    <div>
+                      <p className="font-bold text-sm text-white line-clamp-1">{draft.title}</p>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                        {draft.district_id} | {Number(draft.price).toLocaleString('tr-TR')} ₺
+                      </p>
                     </div>
                     <button 
                       onClick={() => handleApprove(draft.id)}
-                      className="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-2 rounded-lg font-bold transition-all"
+                      className="bg-green-600 hover:bg-green-500 text-white text-xs px-4 py-2.5 rounded-xl font-bold transition-all"
                     >
-                      Onayla
+                      Yayınla
                     </button>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* GELEN TALEPLER (QUANTUM OS SCORING) */}
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold mb-6">Gelen Talepler ({leads.length})</h2>
-              <div className="space-y-4 max-h-[400px] overflow-y-auto">
+            {/* CUSTOMER LEADS LIST */}
+            <div className="bg-gray-900 border border-white/10 p-8 rounded-[2.5rem] shadow-2xl">
+              <h2 className="text-xl font-serif font-bold text-white mb-6">Gelen Müşteri Talepleri ({leads.length})</h2>
+              
+              <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
+                {leads.length === 0 && <p className="text-gray-500 italic text-xs">Atanmış yeni talep bulunmamaktadır.</p>}
                 {leads.map((lead: any) => (
-                  <div key={lead.id} className="border p-5 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-md transition-all">
-                    <div className="flex justify-between items-start mb-3 border-b pb-3">
+                  <div key={lead.id} className="border border-white/5 p-5 rounded-2xl bg-white/[0.01] hover:bg-white/[0.02] transition-all">
+                    <div className="flex justify-between items-start mb-3 border-b border-white/5 pb-3">
                       <div>
-                        <span className="font-bold text-lg block text-gray-900">{lead.full_name || lead.name}</span>
-                        <span className="text-xs text-gray-400">{new Date(lead.created_at).toLocaleString('tr-TR')}</span>
+                        <span className="font-bold text-sm block text-white">{lead.full_name || lead.name}</span>
+                        <span className="text-[9px] text-gray-500 font-bold uppercase mt-1 block tracking-wider">{new Date(lead.created_at).toLocaleString('tr-TR')}</span>
                       </div>
                       
-                      {/* AI Skor Göstergesi */}
-                      <div className="flex flex-col items-end gap-1">
-                        {lead.score ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">AI SCORE</span>
-                            <span className={`px-2 py-1 rounded font-mono font-bold text-xs
-                              ${lead.score >= 80 ? 'bg-green-100 text-green-700' : 
-                                lead.score >= 50 ? 'bg-yellow-100 text-yellow-700' : 
-                                'bg-red-100 text-red-700'}`}>
-                              {lead.score}/100
+                      <div className="flex flex-col items-end gap-1.5">
+                        {lead.score && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">AI SCORE</span>
+                            <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px]
+                              ${lead.score >= 80 ? 'bg-green-600/10 text-green-500 border border-green-500/20' : 
+                                lead.score >= 50 ? 'bg-yellow-600/10 text-yellow-500 border border-yellow-500/20' : 
+                                'bg-red-600/10 text-red-500 border border-red-500/20'}`}>
+                              {lead.score}
                             </span>
                           </div>
-                        ) : null}
-                        {lead.intent_level ? (
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border
-                            ${lead.intent_level === 'VIP' ? 'bg-purple-100 text-purple-700 border-purple-200' : 
-                              lead.intent_level === 'Hot' ? 'bg-red-100 text-red-700 border-red-200' : 
-                              lead.intent_level === 'Warm' ? 'bg-orange-100 text-orange-700 border-orange-200' : 
-                              'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                        )}
+                        {lead.intent_level && (
+                          <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border
+                            ${lead.intent_level === 'VIP' ? 'bg-purple-600/10 text-purple-500 border-purple-500/20' : 
+                              lead.intent_level === 'Hot' ? 'bg-red-600/10 text-red-500 border-red-500/20' : 
+                              lead.intent_level === 'Warm' ? 'bg-orange-600/10 text-orange-500 border-orange-500/20' : 
+                              'bg-gray-600/10 text-gray-500 border-gray-500/20'}`}>
                             {lead.intent_level}
                           </span>
-                        ) : null}
+                        )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <p className="text-sm text-gray-700">📞 <a href={`tel:${lead.phone}`} className="hover:text-blue-600">{lead.phone}</a></p>
-                      <p className="text-sm text-gray-700">📍 {lead.district || 'Belirtilmedi'}</p>
-                      <p className="text-sm text-gray-700">💰 {lead.budget || 'Belirtilmedi'}</p>
-                      <p className="text-sm text-gray-700">🏠 {lead.property_type || 'Belirtilmedi'}</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-3 text-xs text-gray-400">
+                      <p>📞 <a href={`tel:${lead.phone}`} className="hover:text-yellow-500">{lead.phone}</a></p>
+                      <p>📍 {lead.district || 'Belirtilmedi'}</p>
+                      <p>💰 {lead.budget || 'Belirtilmedi'}</p>
+                      <p>🏠 {lead.property_type || 'Belirtilmedi'}</p>
                     </div>
 
                     {lead.message && (
-                      <div className="bg-white p-3 rounded-xl border border-gray-100 text-sm text-gray-600">
+                      <div className="bg-gray-950 p-3 rounded-xl border border-white/5 text-xs text-gray-400 italic">
                         "{lead.message}"
-                      </div>
-                    )}
-                    
-                    {lead.source && (
-                      <div className="mt-3 text-right">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Kaynak: {lead.source}</span>
                       </div>
                     )}
                   </div>
@@ -439,78 +598,91 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
               </div>
             </div>
 
-            {/* SAAS KONTROL MERKEZİ (Sistem Ayarları) */}
-            <div className="bg-[#0a0a0a] text-white p-8 rounded-3xl shadow-xl border border-yellow-500/20 shadow-yellow-500/5">
-              <h2 className="text-2xl font-bold mb-6 text-yellow-500">Quantum OS / SaaS Ayarları</h2>
-              <form onSubmit={handleUpdateSettings} className="space-y-4">
-                {settings.map((s, index) => (
-                  <div key={s.key}>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">
-                      {s.description || s.key}
-                    </label>
-                    <input 
-                      type="text"
-                      value={s.value || ''}
-                      onChange={(e) => {
-                        const newSettings = [...settings];
-                        newSettings[index].value = e.target.value;
-                        setSettings(newSettings);
-                      }}
-                      className="w-full bg-white/5 border border-white/10 p-3 rounded-xl focus:border-yellow-500 outline-none text-sm transition-all"
-                    />
-                  </div>
-                ))}
-                <button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 rounded-xl transition-all mt-4">
-                  Sistem Ayarlarını Güncelle
-                </button>
-              </form>
-            </div>
+            {/* SAAS CONTROL MERKEZİ (SADECE ADMİNLERE GÖSTERİLİR!) */}
+            {userRole === 'admin' && (
+              <div className="bg-[#0a0a0a] border border-yellow-500/10 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+                <h2 className="text-xl font-serif font-bold text-yellow-500 mb-6 flex items-center gap-2">
+                  <Settings size={18} /> SaaS Core Kontrol Merkezi
+                </h2>
+                <form onSubmit={handleUpdateSettings} className="space-y-4">
+                  {settings.map((s, index) => (
+                    <div key={s.key}>
+                      <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1.5 tracking-widest">
+                        {s.description || s.key}
+                      </label>
+                      <input 
+                        type="text"
+                        value={s.value || ''}
+                        onChange={(e) => {
+                          const newSettings = [...settings];
+                          newSettings[index].value = e.target.value;
+                          setSettings(newSettings);
+                        }}
+                        className="w-full bg-white/5 border border-white/10 p-3 rounded-xl focus:border-yellow-500 outline-none text-xs text-gray-300 transition-all font-mono"
+                      />
+                    </div>
+                  ))}
+                  <button className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-bold py-3.5 rounded-xl transition-all shadow-xl shadow-yellow-600/10 mt-4 text-xs uppercase tracking-wider">
+                    Sistem Ayarlarını Güncelle
+                  </button>
+                </form>
+              </div>
+            )}
+
           </div>
         </div>
 
-        {/* ALT: TÜM PORTFÖY YÖNETİMİ */}
-        <div className="mt-16 bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
-          <h2 className="text-2xl font-bold mb-8">Tüm Portföyü Yönet</h2>
+        {/* BOTTOM SECTION: PORTFOLIO GRID */}
+        <div className="mt-16 bg-gray-900 border border-white/10 p-8 md:p-10 rounded-[3rem] shadow-2xl">
+          <h2 className="text-2xl font-serif font-bold text-white mb-8">
+            {userRole === 'admin' ? 'Tüm Kurumsal Portföyü Yönet' : 'Aktif Portföylerim'}
+          </h2>
+          
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b text-gray-400 text-sm">
-                  <th className="pb-4 font-medium">İlan Başlığı</th>
-                  <th className="pb-4 font-medium">Bölge</th>
-                  <th className="pb-4 font-medium">Fiyat</th>
-                  <th className="pb-4 font-medium">Durum</th>
-                  <th className="pb-4 font-medium">İşlemler</th>
+                <tr className="border-b border-white/5 text-gray-500 text-xs font-bold uppercase tracking-widest">
+                  <th className="pb-4">İlan Başlığı</th>
+                  <th className="pb-4">Bölge</th>
+                  <th className="pb-4">Fiyat</th>
+                  <th className="pb-4">Durum</th>
+                  <th className="pb-4">İşlemler</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5 text-sm">
+                {activeProperties.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray-500 italic">Yayında olan aktif ilanınız bulunmamaktadır.</td>
+                  </tr>
+                )}
                 {activeProperties.map((p: any) => (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 font-bold">{p.title}</td>
-                    <td className="py-4 text-gray-600">{p.district_id}</td>
-                    <td className="py-4 font-mono">{p.price.toLocaleString('tr-TR')} ₺</td>
+                  <tr key={p.id} className="hover:bg-white/[0.01] transition-colors">
+                    <td className="py-4 font-bold text-white">{p.title}</td>
+                    <td className="py-4 text-gray-400">{p.district_id}</td>
+                    <td className="py-4 font-mono font-bold text-yellow-500">{Number(p.price).toLocaleString('tr-TR')} ₺</td>
                     <td className="py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.status === 'aktif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                      <span className="bg-green-600/10 border border-green-500/20 text-green-500 font-bold px-3 py-1 rounded-full text-[10px] uppercase tracking-wider">
                         {p.status.toUpperCase()}
                       </span>
                     </td>
                     <td className="py-4">
-                      <div className="flex gap-3">
+                      <div className="flex gap-4">
                         <button 
                           onClick={() => handleDownloadStory(p)}
-                          className="text-purple-500 hover:text-purple-700 font-bold text-sm transition-colors flex items-center gap-1"
-                          title="Günün Story'sini İndir"
+                          className="text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-wider flex items-center gap-1 transition-colors"
+                          title="Story Afişi İndir"
                         >
                           📸 Story
                         </button>
                         <button 
                           onClick={() => handleAIAnalysis(p.id)}
-                          className="text-blue-500 hover:text-blue-700 font-bold text-sm transition-colors flex items-center gap-1"
+                          className="text-blue-400 hover:text-blue-300 font-bold text-xs uppercase tracking-wider flex items-center gap-1 transition-colors"
                         >
                           🤖 AI Analiz
                         </button>
                         <button 
                           onClick={() => handleDelete(p.id)}
-                          className="text-red-500 hover:text-red-700 font-bold text-sm transition-colors"
+                          className="text-red-500 hover:text-red-400 font-bold text-xs uppercase tracking-wider transition-colors"
                         >
                           Sil
                         </button>
@@ -522,7 +694,46 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
             </table>
           </div>
         </div>
+
       </div>
+
+      {/* DASHBOARD QR CODE MODAL */}
+      {showDashboardQR && currentUser && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[120] flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-gray-900 border border-white/10 p-8 md:p-10 rounded-[3rem] w-full max-w-sm relative text-center shadow-2xl">
+            <button 
+              onClick={() => setShowDashboardQR(false)}
+              className="absolute top-6 right-6 bg-white/5 hover:bg-white/10 p-2 rounded-xl text-gray-400 hover:text-white transition-all border border-white/5"
+            >
+              <X size={16} />
+            </button>
+            
+            <h3 className="text-xl font-serif text-white mb-2">Win Card QR Kodu</h3>
+            <p className="text-xs text-gray-500 mb-8">Bu QR kodu müşterilerinize taratarak dijital kartvizitinizi anında paylaşabilirsiniz.</p>
+            
+            <div className="bg-white p-4 rounded-3xl inline-block mb-6 shadow-2xl">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/' + params.lang + '/wincard/' + currentUser.id)}`} 
+                alt="Win Card QR"
+                className="w-48 h-48 mx-auto"
+              />
+            </div>
+            
+            <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest mb-6">Taratın ve Bağlantı Kurun</p>
+            
+            <a 
+              href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(window.location.origin + '/' + params.lang + '/wincard/' + currentUser.id)}`}
+              download="wincard-qr.png"
+              target="_blank"
+              rel="noreferrer"
+              className="w-full bg-yellow-600 hover:bg-yellow-500 text-gray-950 font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider transition-all block text-center"
+            >
+              QR Kodu Büyük Boy İndir
+            </a>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
