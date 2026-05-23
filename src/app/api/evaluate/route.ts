@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     const districtTrend = trends?.find((t: any) => t.district.toLowerCase() === districtName?.toLowerCase()) || {
       avg_sqm_price: 32000, // Fallback if no matching records yet
       price_change_percentage: 1.8,
+      trend_direction: "stabil",
       analysis_note: "Bölgesel hacim stabil."
     };
 

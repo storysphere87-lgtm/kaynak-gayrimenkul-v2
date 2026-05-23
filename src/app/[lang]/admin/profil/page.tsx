@@ -146,14 +146,14 @@ export default function ProfileManagement({ params }: { params: { lang: string }
       setNotification({ message: 'Profiliniz başarıyla güncellendi!', type: 'success' });
       
       // Update local credentials state
-      setCurrentUser(prev => ({
+      setCurrentUser((prev: any) => ({
         ...prev,
         name: ownProfileForm.fullName,
         phone: ownProfileForm.phone,
         email: ownProfileForm.email
       }));
 
-      setOwnProfileForm(prev => ({
+      setOwnProfileForm((prev: any) => ({
         ...prev,
         password: '',
         confirmPassword: ''
