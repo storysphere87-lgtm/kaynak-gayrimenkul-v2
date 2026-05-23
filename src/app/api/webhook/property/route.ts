@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     let title_en = '', description_en = '', title_ar = '', description_ar = '';
     
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' }); // Use flash for speed
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Use flash for speed
       
       const prompt = `
       Sen lüks bir gayrimenkul pazarlama uzmanısın. Aşağıdaki Türkçe emlak ilanının başlığını ve açıklamasını, lüks bir tonla İngilizce ve Arapça'ya çevir.
