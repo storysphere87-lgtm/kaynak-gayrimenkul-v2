@@ -9,10 +9,11 @@ const supabase = createClient(
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const propertyId = params.id;
+    const { id } = await params;
+    const propertyId = id;
 
     if (!propertyId) {
       return NextResponse.json({ error: 'İlan ID gereklidir.' }, { status: 400 });

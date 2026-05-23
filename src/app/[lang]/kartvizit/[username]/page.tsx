@@ -12,9 +12,9 @@ import { siteConfig } from '@/config/site';
 export default async function DigitalBusinessCardPage({
   params
 }: {
-  params: { lang: string; username: string };
+  params: Promise<{ lang: string; username: string }>;
 }) {
-  const { lang, username } = params;
+  const { lang, username } = await params;
 
   // Danışman profili veritabanından çekilir (Büyük/küçük harf duyarsız arama)
   const isCafer = username.toLowerCase().includes('cafer');
