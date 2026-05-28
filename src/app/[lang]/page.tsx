@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { getDictionary, Locale } from '@/getDictionary';
 import { getDistrictsWithCounts, getMarketTrends } from '@/lib/api';
 
+export const revalidate = 3600; // Revalidate home page data at most once per hour (ISR)
+
 import HomeSearchBar from '@/components/home/HomeSearchBar';
 import RegionCatalogue from '@/components/home/RegionCatalogue';
 import MarketTrends from '@/components/home/MarketTrends';

@@ -4,6 +4,8 @@ import { Metadata } from 'next';
 
 import { getDictionary, Locale } from '@/getDictionary';
 
+export const revalidate = 600; // Revalidate portfolio data at most once every 10 minutes (ISR)
+
 export async function generateMetadata(props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang: langParam } = await props.params;
   const lang = langParam as Locale;

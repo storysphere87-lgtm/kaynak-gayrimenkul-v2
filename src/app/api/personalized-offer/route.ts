@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       }
     `;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY?.trim()}`;
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     const parsedResult = JSON.parse(resultText || '{}');
 
     // 4. CRM leads tablosuna "Kişisel Teklif Talebi" olarak kaydedelim
-    await supabase
+    const { data: insertedLead } = await supabase
       .from('leads')
       .insert([{
         name,
@@ -147,7 +147,27 @@ export async function POST(request: Request) {
         intent_level: 'VIP',
         source: 'Kişisel AI Teklifi',
         message: `[Kişisel Teklif Broşürü Hazırlandı] Tercihler: Bölge: ${district || 'Her yer'}, Bütçe: ${Number(budget).toLocaleString('tr-TR')} TL, Yaşam Tarzı: ${lifestyle || 'Belirtilmedi'}. Eşleşen mülkler: ${matchedProperties.map(p => p.title).join(' | ')}`
-      }]);
+      }])
+      .select('id')
+      .single();
+
+    if (insertedLead?.id) {
+      // Müşteri Etkileşim Zaman Tüneline (Omnichannel Lead Bus) Kaydedelim
+      await supabase
+        .from('customer_interactions')
+        .insert([{
+          lead_id: insertedLead.id,
+          event_type: 'personalized_offer_generated',
+          details: {
+            budget,
+            rooms: rooms || null,
+            district: district || null,
+            lifestyle: lifestyle || null,
+            matched_property_ids: matchedProperties.map(p => p.id),
+            ai_brochure: parsedResult
+          }
+        }]);
+    }
 
     return NextResponse.json({
       success: true,

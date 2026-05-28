@@ -1,3 +1,8 @@
+import dns from 'dns';
+
+// Force Node.js to prefer IPv4 over broken IPv6 network routes globally for AI calls
+dns.setDefaultResultOrder('ipv4first');
+
 /**
  * Quantum OS - Otonom Çeviri Motoru
  * Gemini & Grok Desteği
@@ -11,7 +16,7 @@ export async function translateDescription(text: string, targetLang: 'en' | 'ar'
 
   const { data: settings } = await supabase.from('settings').select('*');
   const provider = settings?.find(s => s.key === 'ai_provider')?.value || 'gemini';
-  const apiKey = settings?.find(s => s.key === 'ai_api_key')?.value;
+  const apiKey = settings?.find(s => s.key === 'ai_api_key')?.value?.trim() || process.env.GEMINI_API_KEY?.trim();
 
   if (!apiKey || !text) return text;
 
@@ -65,7 +70,7 @@ export async function evaluateLead(leadData: any): Promise<{ score: number, inte
 
   const { data: settings } = await supabase.from('settings').select('*');
   const provider = settings?.find(s => s.key === 'ai_provider')?.value || 'gemini';
-  const apiKey = settings?.find(s => s.key === 'ai_api_key')?.value;
+  const apiKey = settings?.find(s => s.key === 'ai_api_key')?.value?.trim() || process.env.GEMINI_API_KEY?.trim();
 
   const defaultResult = { score: 50, intent_level: 'Warm' };
   
@@ -162,7 +167,7 @@ export async function analyzePriceWithAI(propertyData: any): Promise<{ evaluatio
 
   const { data: settings } = await supabase.from('settings').select('*');
   const provider = settings?.find(s => s.key === 'ai_provider')?.value || 'gemini';
-  const apiKey = settings?.find(s => s.key === 'ai_api_key')?.value;
+  const apiKey = settings?.find(s => s.key === 'ai_api_key')?.value?.trim() || process.env.GEMINI_API_KEY?.trim();
 
   const defaultResult = { 
     evaluation: "Piyasa verisi eksik.", 
@@ -230,4 +235,79 @@ Tipi: ${propertyData.type}
     return defaultResult;
   }
 }
+
+/**
+ * Quantum OS - AI Yasal Uyum ve Reklam Denetim Filtresi (Modül 1)
+ * Taşınmaz Ticareti Yönetmeliği'ne göre ilan başlığı ve açıklamasını analiz eder.
+ */
+export async function checkLegalComplianceWithAI(title: string, description: string): Promise<{ is_compliant: boolean; warning_reason: string | null }> {
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: settings } = await supabase.from('settings').select('*');
+  const provider = settings?.find(s => s.key === 'ai_provider')?.value || 'gemini';
+  const apiKey = settings?.find(s => s.key === 'ai_api_key')?.value?.trim() || process.env.GEMINI_API_KEY?.trim();
+
+  const defaultResult = { is_compliant: true, warning_reason: null };
+  if (!apiKey) return defaultResult;
+
+  const prompt = `
+    Aşağıdaki gayrimenkul ilanı başlığını ve açıklamasını Türkiye Taşınmaz Ticareti Yönetmeliği kurallarına göre yasal uyum denetimine sok.
+    Özellikle şu kuralları ihlal edip etmediğini kontrol et:
+    1. Alıcıyı yanıltıcı, aldatıcı, gerçeğe aykırı ifadeler veya abartılı, kanıtlanamaz iddialar var mı?
+    2. Fiyat manipülasyonu veya "emsalsiz", "bedava", "kelepir" gibi profesyonelliğe aykırı kelimeler aşırı/yanıltıcı şekilde kullanılmış mı?
+    
+    Analiz sonucunu SADECE şu şablonda geçerli bir JSON olarak döndür, başka hiçbir metin ekleme:
+    {
+      "is_compliant": true,
+      "warning_reason": "Eğer uyumsuz ise buraya yasal gerekçesini yaz, uyumlu ise null döndür."
+    }
+    
+    İLAN BAŞLIĞI: "${title}"
+    İLAN AÇIKLAMASI: "${description}"
+  `;
+
+  try {
+    let aiText = '';
+    
+    if (provider === 'gemini') {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      const data = await response.json();
+      aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } 
+    
+    if (provider === 'grok') {
+      const response = await fetch(`https://api.x.ai/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "grok-beta",
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await response.json();
+      aiText = data.choices?.[0]?.message?.content || '';
+    }
+
+    const jsonStr = aiText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+    return JSON.parse(jsonStr);
+
+  } catch (error) {
+    console.error("AI Yasal Uyum denetim hatası:", error);
+    return defaultResult;
+  }
+}
+
 

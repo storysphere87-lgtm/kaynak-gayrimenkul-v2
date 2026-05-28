@@ -8,48 +8,61 @@ const defaultLocale = 'tr';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Update Supabase session and get user & response
-  const { supabaseResponse, user, supabase } = await updateSession(request);
-
-  // 2. Identify Paths
+  // 1. Identify Paths
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/') || locales.some(lang => pathname === `/${lang}/admin` || pathname.startsWith(`/${lang}/admin/`));
   const isLoginPath = pathname === '/admin/login' || locales.some(lang => pathname === `/${lang}/admin/login`);
 
-  // Admin Only Restricted Paths (Agents cannot enter)
-  const adminOnlyPaths = ['/kpi', '/settings'];
-  const isRestrictedAdminPath = adminOnlyPaths.some(p => pathname.includes(p));
+  let supabaseResponse = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+  let user = null;
+  let supabase = null;
 
-  // 3. Auth Guard
-  if (isAdminPath && !isLoginPath) {
-    if (!user) {
-      // Not logged in -> Redirect to login
-      const loginUrl = new URL('/admin/login', request.url);
-      return NextResponse.redirect(loginUrl);
-    }
+  // 2. Auth Guard & Session Update - ONLY run on Admin paths
+  if (isAdminPath) {
+    const sessionData = await updateSession(request);
+    supabaseResponse = sessionData.supabaseResponse;
+    user = sessionData.user;
+    supabase = sessionData.supabase;
 
-    // RBAC: Check role if trying to access restricted admin pages
-    if (isRestrictedAdminPath) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+    // Admin Only Restricted Paths (Agents cannot enter)
+    const adminOnlyPaths = ['/kpi', '/settings'];
+    const isRestrictedAdminPath = adminOnlyPaths.some(p => pathname.includes(p));
 
-      if (profile?.role !== 'admin') {
-        // Agent trying to access admin-only page -> Redirect to pipeline
-        const fallbackUrl = new URL(`/${defaultLocale}/admin/pipeline`, request.url);
-        return NextResponse.redirect(fallbackUrl);
+    // Auth Guard check
+    if (!isLoginPath) {
+      if (!user) {
+        // Not logged in -> Redirect to login
+        const loginUrl = new URL('/admin/login', request.url);
+        return NextResponse.redirect(loginUrl);
+      }
+
+      // RBAC: Check role if trying to access restricted admin pages
+      if (isRestrictedAdminPath && supabase) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.role !== 'admin') {
+          // Agent trying to access admin-only page -> Redirect to pipeline
+          const fallbackUrl = new URL(`/${defaultLocale}/admin/pipeline`, request.url);
+          return NextResponse.redirect(fallbackUrl);
+        }
       }
     }
+
+    // If logged in and trying to access login page, redirect to dashboard
+    if (isLoginPath && user) {
+      const dashboardUrl = new URL(`/${defaultLocale}/admin`, request.url);
+      return NextResponse.redirect(dashboardUrl);
+    }
   }
 
-  // 4. If logged in and trying to access login page, redirect to dashboard
-  if (isAdminPath && isLoginPath && user) {
-    const dashboardUrl = new URL(`/${defaultLocale}/admin`, request.url);
-    return NextResponse.redirect(dashboardUrl);
-  }
-
-  // 5. Locale Routing Logic
+  // 3. Locale Routing Logic
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );

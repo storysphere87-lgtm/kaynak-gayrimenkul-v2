@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     `;
 
     // Direct REST API Call to Gemini - Zero Dependencies!
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY?.trim()}`;
     
     const response = await fetch(geminiUrl, {
       method: 'POST',
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
     // 3. Eğer alıcı iletişim bilgilerini (isim ve telefon) girmişse, CRM leads tablosuna GERÇEK bir lead kaydı düşelim.
     if (name && phone) {
-      await supabase
+      const { data: insertedLead } = await supabase
         .from('leads')
         .insert([{
           name,
@@ -110,7 +110,27 @@ export async function POST(request: Request) {
           intent_level: parsedResult.intentLevel || 'WARM',
           source: 'AI Müzakereci',
           message: `[AI Müzakere Özeti] ${parsedResult.summary || ''} | Tahmini Maks. Bütçe: ${Number(parsedResult.predictedMaxBudget || 0).toLocaleString('tr-TR')} TL. Alıcının Son Teklifi: ${offerAmount ? offerAmount.toLocaleString('tr-TR') : 'Belirtilmedi'} TL.`
-        }]);
+        }])
+        .select('id')
+        .single();
+
+      if (insertedLead?.id) {
+        // Müşteri Etkileşim Zaman Tüneline (Omnichannel Lead Bus) Kaydedelim
+        await supabase
+          .from('customer_interactions')
+          .insert([{
+            lead_id: insertedLead.id,
+            event_type: 'negotiation_offer',
+            details: {
+              property_id: propertyId,
+              offer_amount: offerAmount || null,
+              buyer_message: message,
+              ai_reply: parsedResult.reply,
+              intent_score: parsedResult.intentScore,
+              predicted_max_budget: parsedResult.predictedMaxBudget
+            }
+          }]);
+      }
     }
 
     return NextResponse.json(parsedResult, { headers: corsHeaders });
