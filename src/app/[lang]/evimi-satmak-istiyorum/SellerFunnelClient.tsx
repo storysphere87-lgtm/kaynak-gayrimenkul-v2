@@ -85,7 +85,7 @@ export default function SellerFunnelClient({ dict, lang, districts }: { dict: an
   const openWhatsApp = () => {
     const districtName = districts.find(d => d.slug === formData.district)?.name || formData.district;
     const message = `Merhaba Cafer Bey, ${districtName}'deki ${formData.sqm}m² ${formData.propertyType} mülküm için otonom değerleme yaptım. %98 doğruluk payıyla tahmini değer: ${valuation ? formatCurrency(valuation.min) + ' - ' + formatCurrency(valuation.max) : 'Hesaplanıyor'}. Detaylı rapor ve satış stratejisi için görüşmek istiyorum.`;
-    window.open(`https://wa.me/905323530606?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/905451932006?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const formatCurrency = (value: number) => {

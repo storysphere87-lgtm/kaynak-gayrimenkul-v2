@@ -61,10 +61,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    // Singleton Supabase Client
+    if (!(global as any)._supabaseAdminClient) {
+      (global as any)._supabaseAdminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+    }
+    const supabase = (global as any)._supabaseAdminClient;
 
     const { data: prop } = await supabase
       .from('properties')

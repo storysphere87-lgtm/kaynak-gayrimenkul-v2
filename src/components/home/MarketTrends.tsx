@@ -39,7 +39,7 @@ export default function MarketTrends({ trends, dict, lang, isRtl }: MarketTrends
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {trends.map((trend, i) => (
-            <div key={trend.id || i} className="bg-white/5 border border-white/10 rounded-[3rem] p-10 hover:border-yellow-600/30 transition-all duration-500 group relative overflow-hidden">
+            <div key={trend.id || i} className="bg-white/5 border border-white/10 rounded-3xl p-8 hover:border-yellow-600/30 transition-all duration-500 group relative flex flex-col justify-between overflow-hidden">
               {/* Inner highlight */}
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               

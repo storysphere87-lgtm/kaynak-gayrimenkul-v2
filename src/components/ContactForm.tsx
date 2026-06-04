@@ -61,7 +61,7 @@ export default function ContactForm({ dict, lang, districtName, propertyId, isRt
       const name = formData.get('name');
       const message = formData.get('message');
       const waMessage = `Merhaba, ben ${name}. ${districtName ? districtName + ' bölgesi' : ''} ${propertyId ? propertyId + ' referanslı ilan' : ''} hakkında bilgi almak istiyorum. Mesajım: ${message}`;
-      window.open(`https://wa.me/905323530606?text=${encodeURIComponent(waMessage)}`, '_blank');
+      window.open(`https://wa.me/905451932006?text=${encodeURIComponent(waMessage)}`, '_blank');
     };
 
     return (

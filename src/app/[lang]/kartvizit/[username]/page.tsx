@@ -22,7 +22,7 @@ export default async function DigitalBusinessCardPage({
 
   let profile = {
     full_name: isRefia ? 'Refia Nur Peksoy' : 'Cafer Peksoy',
-    phone: isRefia ? '0530 000 00 00' : '0532 353 06 06',
+    phone: isRefia ? '0530 000 00 00' : '0545 193 20 06',
     email: isRefia ? 'refia@kaynakgayrimenkul.com' : 'info@kaynakgayrimenkul.com',
     role: isRefia ? 'Lüks Konut Yatırım Danışmanı' : 'Kurucu & Lüks Konut Brokerı',
     image: isRefia 

@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const name = searchParams.get('name') || 'Cafer Peksoy';
-    const phone = searchParams.get('phone') || '+905323530606';
+    const phone = searchParams.get('phone') || '+905451932006';
     const email = searchParams.get('email') || 'info@kaynakgayrimenkul.com';
     const role = searchParams.get('role') || 'Kurucu & Lüks Konut Brokerı';
 

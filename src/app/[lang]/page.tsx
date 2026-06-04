@@ -158,7 +158,7 @@ export default async function Home(props: { params: Promise<{ lang: string }> })
             { title: 'Ticari Yatırım', desc: 'Ofis, dükkan ve plaza yatırımlarında ROI odaklı danışmanlık.', icon: '🏢' },
             { title: 'Yatırım Danışmanlığı', desc: 'Ankara lüks konut piyasasında veriye dayalı stratejik rehberlik.', icon: '📈' }
           ].map((service, i) => (
-            <div key={i} className="bg-white/[0.02] border border-white/5 p-16 rounded-[3rem] hover:border-yellow-600/30 transition-all group">
+            <div key={i} className="bg-white/[0.02] border border-white/5 p-8 md:p-12 rounded-3xl hover:border-yellow-600/30 transition-all group relative z-10 flex flex-col h-full justify-between overflow-hidden">
               <div className="text-4xl mb-8 group-hover:scale-110 transition-transform">{service.icon}</div>
               <h4 className="text-xl font-serif text-white mb-4">{service.title}</h4>
               <p className="text-gray-500 text-xs font-light leading-relaxed">{service.desc}</p>

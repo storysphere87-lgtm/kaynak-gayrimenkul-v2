@@ -12,12 +12,17 @@
 import { callAI, safeParseJSON } from './ai-gateway';
 import { createClient } from '@supabase/supabase-js';
 
+let serviceClientInstance: any = null;
+
 /** Tek Supabase server client (Singleton — her çağrıda yeniden oluşturulmaz) */
 function getServiceClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  if (!serviceClientInstance) {
+    serviceClientInstance = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return serviceClientInstance;
 }
 
 // ─── 1. Çeviri ────────────────────────────────────────────────────────────────

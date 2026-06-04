@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { getDictionary, Locale } from '@/getDictionary';
 import { Shield, Sparkles, MessageSquare, ArrowUpRight, TrendingUp } from 'lucide-react';
 
-export async function generateMetadata({ params: { lang } }: { params: { lang: Locale } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   return {
     title: `Lüks Konut Danışmanlarımız | Kaynak Gayrimenkul`,
@@ -11,7 +13,9 @@ export async function generateMetadata({ params: { lang } }: { params: { lang: L
   };
 }
 
-export default async function DanismanlarPage({ params: { lang } }: { params: { lang: Locale } }) {
+export default async function DanismanlarPage(props: { params: Promise<{ lang: string }> }) {
+  const { lang: langParam } = await props.params;
+  const lang = langParam as Locale;
   const dict = await getDictionary(lang);
   const isRtl = lang === 'ar';
 
@@ -59,7 +63,7 @@ export default async function DanismanlarPage({ params: { lang } }: { params: { 
         {/* TEAM CARDS CONTAINER */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
           {team.map((member, i) => {
-            const waUrl = `https://wa.me/905323530606?text=${encodeURIComponent(member.waMessage)}`;
+            const waUrl = `https://wa.me/905451932006?text=${encodeURIComponent(member.waMessage)}`;
 
             return (
               <div 

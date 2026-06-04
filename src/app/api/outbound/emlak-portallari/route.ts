@@ -40,7 +40,7 @@ export async function GET() {
       xml += `    <agency>\n`;
       xml += `      <name>Kaynak Gayrimenkul</name>\n`;
       xml += `      <email>kaynakgayrimenkul06@gmail.com</email>\n`;
-      xml += `      <phone>+905323530606</phone>\n`;
+      xml += `      <phone>+905451932006</phone>\n`;
       xml += `    </agency>\n`;
       xml += `    <updated_at>${prop.updated_at || new Date().toISOString()}</updated_at>\n`;
       xml += `  </property>\n`;
