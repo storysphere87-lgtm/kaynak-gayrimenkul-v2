@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Shield, User, Settings, Lock, Mail, Phone, Plus, Trash2, Key, Save, ArrowLeft } from 'lucide-react';
+import { Shield, User, Settings, Lock, Mail, Phone, Plus, Trash2, Key, Save, ArrowLeft, RefreshCw, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { 
   getAllProfilesAction, 
   createAdvisorAction, 
@@ -14,7 +14,7 @@ import {
 
 export default function ProfileManagement({ params }: { params: { lang: string } }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'profile' | 'advisors'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'advisors' | 'sysusers'>('profile');
   const [userRole, setUserRole] = useState<'admin' | 'agent' | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +23,13 @@ export default function ProfileManagement({ params }: { params: { lang: string }
 
   // Profile Roster for Admins
   const [allAdvisors, setAllAdvisors] = useState<any[]>([]);
+
+  // System Users (from Supabase Auth — Admin only)
+  const [systemUsers, setSystemUsers] = useState<any[]>([]);
+  const [sysUsersLoading, setSysUsersLoading] = useState(false);
+  const [sysPasswordMap, setSysPasswordMap] = useState<Record<string, string>>({});
+  const [sysPasswordVisible, setSysPasswordVisible] = useState<Record<string, boolean>>({});
+  const [sysResetting, setSysResetting] = useState<string | null>(null);
 
   // Own Profile Form State
   const [ownProfileForm, setOwnProfileForm] = useState({
@@ -52,6 +59,49 @@ export default function ProfileManagement({ params }: { params: { lang: string }
     }
   }, [notification]);
 
+  // Sistem kullanıcılarını Supabase'den çek (Admin only)
+  const fetchSystemUsers = async () => {
+    setSysUsersLoading(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      if (data.success) {
+        setSystemUsers(data.users);
+      } else {
+        setNotification({ message: 'Kullanıcı listesi alınamadı: ' + (data.error || 'Bilinmeyen hata'), type: 'error' });
+      }
+    } catch (e: any) {
+      setNotification({ message: 'API bağlantı hatası: ' + e.message, type: 'error' });
+    } finally {
+      setSysUsersLoading(false);
+    }
+  };
+
+  // Sistem kullanıcısının şifresini API ile sıfırla
+  const handleSysPasswordReset = async (userId: string, userName: string) => {
+    const newPwd = sysPasswordMap[userId];
+    if (!newPwd || newPwd.length < 6) {
+      setNotification({ message: 'Şifre en az 6 karakter olmalıdır!', type: 'error' });
+      return;
+    }
+    setSysResetting(userId);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, newPassword: newPwd }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      setNotification({ message: `✅ "${userName}" şifresi başarıyla güncellendi! Artık giriş yapabilir.`, type: 'success' });
+      setSysPasswordMap(prev => ({ ...prev, [userId]: '' }));
+    } catch (e: any) {
+      setNotification({ message: 'Şifre sıfırlama hatası: ' + e.message, type: 'error' });
+    } finally {
+      setSysResetting(null);
+    }
+  };
+
   // Load user data and profile roster
   const fetchSessionAndData = async () => {
     setLoading(true);
@@ -63,8 +113,26 @@ export default function ProfileManagement({ params }: { params: { lang: string }
         return;
       }
 
-      const role = session.user.user_metadata?.role;
-      setUserRole(role);
+      // ─── KÖK NEDEN DÜZELTMESİ ─────────────────────────────────────────
+      // Eski kod: SADECE JWT metadata.role kontrol ediyordu → rol boşsa null
+      // Yeni kod: JWT → profiles tablosu → güvenli fallback (agent) zinciri
+      // ──────────────────────────────────────────────────────────────────
+      let role: string = session.user.user_metadata?.role || '';
+
+      if (!role || (role !== 'admin' && role !== 'agent')) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        role = profileData?.role || '';
+      }
+
+      if (!role || (role !== 'admin' && role !== 'agent')) {
+        role = 'agent';
+      }
+
+      setUserRole(role as 'admin' | 'agent');
       
       // Fetch user profile from public.profiles
       const { data: profile } = await supabase
@@ -298,10 +366,10 @@ export default function ProfileManagement({ params }: { params: { lang: string }
         </div>
 
         {/* TAB NAVIGATION SELECTOR */}
-        <div className="flex gap-4 border-b border-white/5 pb-4 mb-10">
+        <div className="flex flex-wrap gap-3 border-b border-white/5 pb-4 mb-10">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`px-8 py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-wider flex items-center gap-2 ${
+            className={`px-6 py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-wider flex items-center gap-2 ${
               activeTab === 'profile' 
                 ? 'bg-yellow-600 text-gray-950 font-extrabold shadow-lg shadow-yellow-600/10' 
                 : 'bg-white/5 border border-white/5 text-gray-400 hover:text-white'
@@ -313,7 +381,7 @@ export default function ProfileManagement({ params }: { params: { lang: string }
           {userRole === 'admin' && (
             <button
               onClick={() => setActiveTab('advisors')}
-              className={`px-8 py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-wider flex items-center gap-2 ${
+              className={`px-6 py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-wider flex items-center gap-2 ${
                 activeTab === 'advisors' 
                   ? 'bg-yellow-600 text-gray-950 font-extrabold shadow-lg shadow-yellow-600/10' 
                   : 'bg-white/5 border border-white/5 text-gray-400 hover:text-white'
@@ -322,10 +390,131 @@ export default function ProfileManagement({ params }: { params: { lang: string }
               <Shield size={14} /> Danışman Kadrosu ({allAdvisors.length})
             </button>
           )}
+
+          {userRole === 'admin' && (
+            <button
+              onClick={() => { setActiveTab('sysusers'); fetchSystemUsers(); }}
+              className={`px-6 py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-wider flex items-center gap-2 ${
+                activeTab === 'sysusers' 
+                  ? 'bg-red-600 text-white font-extrabold shadow-lg shadow-red-600/10' 
+                  : 'bg-red-950/30 border border-red-500/20 text-red-400 hover:text-white'
+              }`}
+            >
+              <Key size={14} /> ⚠️ Sistem Kullanıcıları & Şifre Sıfırlama
+            </button>
+          )}
         </div>
 
         {/* TAB CONTENT GRID */}
-        {activeTab === 'profile' ? (
+        {activeTab === 'sysusers' ? (
+          /* ─── SİSTEM KULLANICILARI SEKMESI — BROKER ONLY ─── */
+          <div className="space-y-6">
+            <div className="bg-red-950/30 border border-red-500/20 rounded-2xl p-5 flex items-start gap-3">
+              <AlertTriangle className="text-red-400 flex-shrink-0 mt-0.5" size={18} />
+              <div>
+                <p className="text-red-300 font-bold text-sm mb-1">⚠️ Sistem Yöneticisi Yetkisi Gerektiren Bölge</p>
+                <p className="text-red-400/80 text-xs leading-relaxed">
+                  Buradan Supabase Auth sistemindeki tüm gerçek kullanıcıları görebilir ve şifrelerini doğrudan sıfırlayabilirsiniz.
+                  "Yanlış şifre" sorunu bu ekrandan çözülecektir. Şifre değiştirildikten sonra giriş sayfasına gidin.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-serif font-bold text-white">Supabase Auth Kullanıcıları ({systemUsers.length})</h2>
+              <button
+                onClick={fetchSystemUsers}
+                disabled={sysUsersLoading}
+                className="bg-white/5 border border-white/10 hover:border-yellow-600/30 text-gray-300 hover:text-white px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 text-xs uppercase tracking-wider disabled:opacity-50"
+              >
+                <RefreshCw size={12} className={sysUsersLoading ? 'animate-spin' : ''} />
+                {sysUsersLoading ? 'Yükleniyor...' : 'Listeyi Yenile'}
+              </button>
+            </div>
+
+            {sysUsersLoading && systemUsers.length === 0 && (
+              <div className="py-16 text-center text-gray-500">
+                <div className="w-8 h-8 border-2 border-yellow-600/30 border-t-yellow-600 rounded-full animate-spin mx-auto mb-4" />
+                Supabase'den kullanıcılar çekiliyor...
+              </div>
+            )}
+
+            {!sysUsersLoading && systemUsers.length === 0 && (
+              <div className="py-16 text-center text-gray-500 italic text-sm">
+                Kullanıcı bulunamadı. "Listeyi Yenile" butonuna tıklayın.
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {systemUsers.map((u: any) => (
+                <div key={u.id} className="bg-gray-900 border border-white/10 rounded-[2rem] p-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-600/3 blur-[40px] rounded-full" />
+
+                  {/* Kullanıcı bilgisi */}
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className={`text-[8px] font-extrabold uppercase px-2.5 py-1 rounded-full border mb-2 inline-block ${
+                        u.role === 'admin' 
+                          ? 'bg-purple-600/10 text-purple-400 border-purple-500/20' 
+                          : 'bg-cyan-600/10 text-cyan-400 border-cyan-500/20'
+                      }`}>
+                        {u.role === 'admin' ? 'Admin / Broker' : 'Danışman'}
+                      </span>
+                      <h4 className="text-base font-serif font-bold text-white">{u.full_name}</h4>
+                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">{u.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${
+                        u.email_confirmed ? 'bg-green-600/10 text-green-400' : 'bg-orange-600/10 text-orange-400'
+                      }`}>
+                        {u.email_confirmed ? '✔ E-posta Onayldı' : '⚠ Onay Bekliyor'}
+                      </span>
+                      {u.last_sign_in && (
+                        <p className="text-[9px] text-gray-600 mt-1">
+                          Son giriş: {new Date(u.last_sign_in).toLocaleDateString('tr-TR')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Şifre Sıfırlama Alanı */}
+                  <div className="border-t border-white/5 pt-4 space-y-3">
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Yeni Şifre Belirle
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={sysPasswordVisible[u.id] ? 'text' : 'password'}
+                        value={sysPasswordMap[u.id] || ''}
+                        onChange={e => setSysPasswordMap(prev => ({ ...prev, [u.id]: e.target.value }))}
+                        className="w-full bg-gray-950 border border-white/10 pl-4 pr-10 py-3 rounded-xl text-sm text-white focus:border-yellow-600 outline-none transition-all font-mono"
+                        placeholder="En az 6 karakter"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSysPasswordVisible(prev => ({ ...prev, [u.id]: !prev[u.id] }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400"
+                      >
+                        {sysPasswordVisible[u.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => handleSysPasswordReset(u.id, u.full_name)}
+                      disabled={sysResetting === u.id || !sysPasswordMap[u.id]}
+                      className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-extrabold py-3 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40"
+                    >
+                      {sysResetting === u.id ? (
+                        <><RefreshCw size={12} className="animate-spin" /> Güncelleniyor...</>
+                      ) : (
+                        <><Key size={12} /> Şifre Kaydet & Aktif Et</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : activeTab === 'profile' ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* LEFT: PERSONAL PROFILE FORM */}
             <div className="lg:col-span-7 bg-gray-900 border border-white/10 p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden">

@@ -523,4 +523,48 @@ export async function resetAdvisorPasswordAction(id: string, newPassword: string
   }
 }
 
+/**
+ * Kullanıcının kendi şifresini değiştirir (Admin API ile — service role gerektirir)
+ */
+export async function changeMyPasswordAction(userId: string, newPassword: string) {
+  try {
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'Şifre en az 6 karakter olmalıdır.' };
+    }
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      password: newPassword
+    });
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
 
+/**
+ * Kullanıcı rolünü düzeltir — hem JWT metadata hem profiles tablosunu günceller
+ * 'Doğru şifre ama giriş yapılamıyor' sorununu kalıcı çözer
+ */
+export async function fixUserRoleAction(
+  userId: string,
+  role: 'admin' | 'agent' = 'agent',
+  fullName?: string
+) {
+  try {
+    // 1. profiles tablosunu upsert et
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, role, full_name: fullName || 'Danışman' });
+    if (profileError) throw profileError;
+
+    // 2. Auth user_metadata güncelle
+    const { error: authError } = await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { role, full_name: fullName || 'Danışman' }
+    });
+    if (authError) throw authError;
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}

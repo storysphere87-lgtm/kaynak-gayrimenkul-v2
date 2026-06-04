@@ -20,8 +20,8 @@ export async function middleware(request: NextRequest) {
   let user = null;
   let supabase = null;
 
-  // 2. Auth Guard & Session Update - ONLY run on Admin paths
-  if (isAdminPath) {
+  // 2. Auth Guard & Session Update - ONLY run on Admin paths (Bypass login page to prevent Supabase network latency)
+  if (isAdminPath && !isLoginPath) {
     const sessionData = await updateSession(request);
     supabaseResponse = sessionData.supabaseResponse;
     user = sessionData.user;
@@ -32,35 +32,28 @@ export async function middleware(request: NextRequest) {
     const isRestrictedAdminPath = adminOnlyPaths.some(p => pathname.includes(p));
 
     // Auth Guard check
-    if (!isLoginPath) {
-      if (!user) {
-        // Not logged in -> Redirect to login
-        const loginUrl = new URL('/admin/login', request.url);
-        return NextResponse.redirect(loginUrl);
-      }
+    if (!user) {
+      // Not logged in -> Redirect to localized login page
+      const loginUrl = new URL(`/${defaultLocale}/admin/login`, request.url);
+      return NextResponse.redirect(loginUrl);
+    }
 
-      // RBAC: Check role if trying to access restricted admin pages
-      if (isRestrictedAdminPath && supabase) {
-        const { data: profile } = await supabase
+    // RBAC: Check role if trying to access restricted admin pages
+    if (isRestrictedAdminPath && supabase) {
+      const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
 
-        if (profile?.role !== 'admin') {
-          // Agent trying to access admin-only page -> Redirect to pipeline
-          const fallbackUrl = new URL(`/${defaultLocale}/admin/pipeline`, request.url);
-          return NextResponse.redirect(fallbackUrl);
-        }
+      if (profile?.role !== 'admin') {
+        // Agent trying to access admin-only page -> Redirect to pipeline
+        const fallbackUrl = new URL(`/${defaultLocale}/admin/pipeline`, request.url);
+        return NextResponse.redirect(fallbackUrl);
       }
     }
-
-    // If logged in and trying to access login page, redirect to dashboard
-    if (isLoginPath && user) {
-      const dashboardUrl = new URL(`/${defaultLocale}/admin`, request.url);
-      return NextResponse.redirect(dashboardUrl);
-    }
   }
+
 
   // 3. Locale Routing Logic
   const pathnameHasLocale = locales.some(

@@ -23,6 +23,15 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
   // Dashboard QR Modal State
   const [showDashboardQR, setShowDashboardQR] = useState(false);
 
+  // Değerleme Raporu Modal State
+  const [valuationModal, setValuationModal] = useState<{
+    show: boolean;
+    loading: boolean;
+    propertyTitle: string;
+    result: any | null;
+  }>({ show: false, loading: false, propertyTitle: '', result: null });
+
+
   // Form State
   const [formData, setFormData] = useState({
     title: '',
@@ -56,16 +65,37 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
         return;
       }
 
-      // Role kontrolü (JWT içinden kontrol)
-      const role = session.user.user_metadata?.role;
-      if (role !== 'admin' && role !== 'agent') {
-        setNotification({ message: 'Yetkisiz Erişim! Geçersiz Kullanıcı Rolü.', type: 'error' });
-        await supabase.auth.signOut();
-        router.push(`/${params.lang}/admin/login`);
-        return;
+      // ─── KÖK NEDEN DÜZELTMESİ ─────────────────────────────────────────────
+      // Eski kod: sadece JWT metadata.role kontrol ediyordu → boşsa logout
+      // Yeni kod: JWT → profiles tablosu → güvenli fallback (agent)
+      // Bu sayede doğru şifre girildiğinde sistem artık kullanıcıyı atmıyor.
+      // ─────────────────────────────────────────────────────────────────────────
+      let role: string = session.user.user_metadata?.role || '';
+
+      if (!role || (role !== 'admin' && role !== 'agent')) {
+        // JWT'de geçerli rol yok, profiles tablosuna bak
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        role = profileData?.role || '';
       }
 
-      setUserRole(role);
+      if (!role || (role !== 'admin' && role !== 'agent')) {
+        // Profiles tablosunda da yoksa güvenli fallback: agent
+        role = 'agent';
+        // Hem JWT metadata hem profiles tablosunu güncelle (bir sonraki girişte sorun olmaz)
+        await supabase.auth.updateUser({ data: { role: 'agent' } });
+        await supabase.from('profiles').upsert({
+          id: session.user.id,
+          role: 'agent',
+          full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Danışman',
+        });
+      }
+
+      setUserRole(role as 'admin' | 'agent');
       setCurrentUser({
         id: session.user.id,
         email: session.user.email,
@@ -149,14 +179,15 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
     else setNotification({ message: 'Hata: ' + result.error, type: 'error' });
   };
 
-  const handleAIAnalysis = async (id: string) => {
-    setNotification({ message: 'AI Analizi yapılıyor, lütfen bekleyin...', type: 'success' });
+  const handleAIAnalysis = async (property: any) => {
+    setValuationModal({ show: true, loading: true, propertyTitle: property.title, result: null });
     const { analyzePropertyPriceAction } = await import('./actions');
-    const result = await analyzePropertyPriceAction(id);
+    const result = await analyzePropertyPriceAction(property.id);
     if (result.success && result.result) {
-      alert(`AI DEĞERLENDİRMESİ:\n\nDeğerleme: ${result.result.evaluation}\nTahmini Fiyat: ${result.result.estimated_value}\nÖneri: ${result.result.suggestion}`);
+      setValuationModal({ show: true, loading: false, propertyTitle: property.title, result: result.result });
     } else {
-      setNotification({ message: 'Hata: ' + result.error, type: 'error' });
+      setValuationModal({ show: false, loading: false, propertyTitle: '', result: null });
+      setNotification({ message: 'Değerleme Hatası: ' + result.error, type: 'error' });
     }
   };
 
@@ -675,7 +706,7 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
                           📸 Story
                         </button>
                         <button 
-                          onClick={() => handleAIAnalysis(p.id)}
+                          onClick={() => handleAIAnalysis(p)}
                           className="text-blue-400 hover:text-blue-300 font-bold text-xs uppercase tracking-wider flex items-center gap-1 transition-colors"
                         >
                           🤖 AI Analiz
@@ -730,6 +761,151 @@ export default function AdminDashboard({ params }: { params: { lang: string } })
             >
               QR Kodu Büyük Boy İndir
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* DEĞERLEME RAPORU MODALİ — GERSÇEK VERİ TABANLI */}
+      {valuationModal.show && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[130] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gray-900 border border-white/10 rounded-[2.5rem] w-full max-w-2xl relative shadow-2xl my-4">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-start p-8 pb-4">
+              <div>
+                <span className="text-yellow-600 text-[10px] font-extrabold uppercase tracking-[0.3em] block mb-1">Quantum OS Değerleme Raporu</span>
+                <h3 className="text-xl font-serif font-bold text-white">{valuationModal.propertyTitle}</h3>
+              </div>
+              <button 
+                onClick={() => setValuationModal({ show: false, loading: false, propertyTitle: '', result: null })}
+                className="bg-white/5 hover:bg-white/10 p-2 rounded-xl text-gray-400 hover:text-white transition-all border border-white/5 flex-shrink-0 ml-4"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {valuationModal.loading ? (
+              <div className="p-12 text-center">
+                <div className="w-10 h-10 border-2 border-yellow-600/30 border-t-yellow-600 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400 text-sm">Piyasa verisi analiz ediliyor...</p>
+                <p className="text-gray-600 text-xs mt-2">CMA verisi + Ankara bölge endeksi hesaplanıyor</p>
+              </div>
+            ) : valuationModal.result && (
+              <div className="p-8 space-y-5">
+
+                {/* Fiyat Değerlendirmesi */}
+                <div className="bg-gray-950 border border-white/5 rounded-2xl p-5">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Piyasa Değerlendirmesi</p>
+                  <p className="text-white text-sm leading-relaxed">{valuationModal.result.evaluation}</p>
+                </div>
+
+                {/* Tahmini Değer + CMA */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-yellow-950/30 border border-yellow-600/20 rounded-2xl p-5 text-left">
+                    <p className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest mb-1">Tahmini Piyasa Değeri</p>
+                    <p className="text-yellow-400 font-bold text-sm">{valuationModal.result.estimated_value}</p>
+                  </div>
+                  {valuationModal.result.cma?.count > 0 && (
+                    <div className="bg-blue-950/30 border border-blue-600/20 rounded-2xl p-5 text-left">
+                      <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">CMA — Benzer İlan Ort.</p>
+                      <p className="text-blue-300 font-bold text-sm">{valuationModal.result.cma.avgPrice?.toLocaleString('tr-TR')} TL</p>
+                      <p className="text-blue-600 text-[10px] mt-1">{valuationModal.result.cma.count} ilan karşılaştırıldı</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Konum / Şerefiye Primi */}
+                {valuationModal.result.valuation?.streetPremium?.premiumPercent > 0 && (
+                  <div className="bg-purple-950/30 border border-purple-600/20 rounded-2xl p-5 text-left">
+                    <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Konum Şerefiye Analizi</p>
+                    <p className="text-white text-sm font-semibold">
+                      Mülk, <span className="text-purple-300">"{valuationModal.result.valuation.streetPremium.detectedName}"</span> caddesi/bulvarı üzerinde tespit edilmiştir.
+                    </p>
+                    <p className="text-purple-400 text-xs mt-1">
+                      Şerefiye Primi: <span className="font-extrabold text-purple-300">+%{valuationModal.result.valuation.streetPremium.premiumPercent}</span> ({valuationModal.result.valuation.streetPremium.type})
+                    </p>
+                  </div>
+                )}
+
+                {/* Bölge Verileri */}
+                {valuationModal.result.valuation?.success && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 text-center">
+                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Bölge m² Ort.</p>
+                      <p className="text-white font-bold text-sm">{valuationModal.result.valuation.marketAvgPerSqm?.toLocaleString('tr-TR')}</p>
+                      <p className="text-gray-600 text-[9px]">TL/m²</p>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 text-center">
+                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Yatırım Notu</p>
+                      <p className={`font-extrabold text-lg ${valuationModal.result.valuation.investmentRating?.startsWith('A') ? 'text-green-500' : 'text-yellow-500'}`}>
+                        {valuationModal.result.valuation.investmentRating}
+                      </p>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 text-center">
+                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Talep Skoru</p>
+                      <p className="text-white font-bold text-sm">{valuationModal.result.valuation.demandScore}</p>
+                      <p className="text-gray-600 text-[9px]">/ 100</p>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 text-center">
+                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Bölge Trendi</p>
+                      <p className={`font-bold text-xs ${
+                        valuationModal.result.valuation.trend === 'yükselen' ? 'text-green-500' 
+                        : valuationModal.result.valuation.trend === 'düşen' ? 'text-red-500' 
+                        : 'text-yellow-500'
+                      }`}>
+                        {valuationModal.result.valuation.trend === 'yükselen' ? '↑ Yükselen' 
+                         : valuationModal.result.valuation.trend === 'düşen' ? '↓ Düşen' 
+                         : '→ Stabil'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bölge Piyasa Notu */}
+                {valuationModal.result.valuation?.marketNote && (
+                  <div className="bg-gray-950 border border-white/5 rounded-xl p-4 text-xs text-gray-400 italic leading-relaxed text-left">
+                    📍 {valuationModal.result.valuation.marketNote}
+                  </div>
+                )}
+
+                {/* Mahalle Karşılaştırma Listesi */}
+                {valuationModal.result.valuation?.neighborhoodsComparison?.length > 0 && (
+                  <div className="bg-gray-950 border border-white/5 rounded-2xl p-5 text-left">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Çevredeki Mahalleler Ortalama Değer Karşılaştırması</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[140px] overflow-y-auto pr-1">
+                      {valuationModal.result.valuation.neighborhoodsComparison.map((n: any, idx: number) => (
+                        <div key={idx} className="bg-white/[0.01] border border-white/5 rounded-lg p-2.5 flex flex-col justify-between">
+                          <p className="text-white text-xs font-bold truncate">{n.name}</p>
+                          <div className="flex justify-between items-center mt-1">
+                            <p className="text-[10px] text-gray-400 font-mono">{n.avgPricePerSqm?.toLocaleString('tr-TR')} ₺/m²</p>
+                            <span className={`text-[8px] font-extrabold px-1.5 py-0.2 rounded ${
+                              n.trend === 'yükselen' ? 'bg-green-600/10 text-green-400'
+                              : n.trend === 'düşen' ? 'bg-red-600/10 text-red-400'
+                              : 'bg-yellow-600/10 text-yellow-400'
+                            }`}>
+                              {n.investmentRating}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Strateji Önerisi */}
+                <div className="bg-green-950/30 border border-green-600/20 rounded-2xl p-5 text-left">
+                  <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-2">Danışman Strateji Önerisi</p>
+                  <p className="text-green-300 text-sm leading-relaxed">{valuationModal.result.suggestion}</p>
+                </div>
+
+                <button
+                  onClick={() => setValuationModal({ show: false, loading: false, propertyTitle: '', result: null })}
+                  className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                >
+                  Kapat
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

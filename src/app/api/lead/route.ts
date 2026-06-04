@@ -2,10 +2,24 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { supabase } from '@/lib/supabase';
 import { logApiCall } from '@/lib/api-logger';
+import { checkRateLimit, getClientIP, RATE_LIMITS } from '@/lib/rate-limiter';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
+  // ─── Rate Limiting ────────────────────────────────────────────────────────
+  const ip = getClientIP(request);
+  const rateResult = checkRateLimit(ip, 'lead', RATE_LIMITS.lead);
+  if (!rateResult.allowed) {
+    return NextResponse.json(
+      { error: 'Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)) },
+      }
+    );
+  }
+
   const startTime = Date.now();
   let clientName = 'Belirtilmedi';
 
